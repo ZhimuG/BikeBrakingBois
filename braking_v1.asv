@@ -1,0 +1,43 @@
+%% Inputs
+m_b = 15; %[kg] mass of bike
+m_p = 60; %[kg] mass of person
+mu_s = 0.5; %[kg] coefficient of static friction
+theta = pi/36; %[radians] angle of incline
+
+% For Torque about front wheel (C1)
+d_c1c2 = 1; %[m] distance between C1 and C2 (in negative x-direction)
+d_c1COP_y = 1; %[m] y-component distance between C1 and COP  (in positive y-direction)
+d_c1COM = 1; %[m] distance between C1 and COM 
+
+% For Torque about center of mass (COM)
+d_COMc1_y = 1;  %[m] y-component distance between COM and C1 (in negative y-direction)
+d_COMc1_x = 1;  %[m] x-component distance between COM and C1 (in positive x-direction)
+d_COMCOP_y = 1; %[m] y-component distance between COM and COP (in positive? y-direction)
+d_COMc2_y = 1;  %[m] y-component distance between COM and C2 (in negative y-direction)
+d_COMc2_x = 1;  %[m] x-component distance between COM and C2 (in negative x-direction)
+I_COM = 1;      %[kg*m^2] moment of inertia about the COM
+%% Preprocessing
+g = 9.81; %[m/s^2] 
+M = m_b + m_p;
+
+% variable order: 
+%          [      F_N1,      F_N2,     F_FA2,      F_F2,       F_F1,        F_A, a_y, a_x, alpha
+sumF_y =   [         1,         1,         0,         0,          0,          0,  -M,   0, 0];
+sumF_x =   [         0,         0,         1,        -1,         -1,         -1,   0,   M, 0];
+sumM_COM = [ d_COMc1_x,-d_COMc2_x, d_COMc2_y,-d_COMc2_y, -d_COMc1_y, d_COMCOP_y,   0,   0, I_COM]; 
+
+A = [sumF_y; sumF_x; sumM_COM];
+b = [M*g*cos(theta); -M*g*sin(theta); 0]; 
+
+%% Assumptions
+A(:,7) = 0; % A1: Assume there is no acceleration in the y-direction
+A(:,3) = 0; % A2: Assume that while braking, no forward force is applied to the back wheel (via pedalling)
+A(:,6) = 0; % A3: Assume that there is no air resistance for this model
+A(:,9) = 0; % A4: Assume there is no angular acceleration about the center of mass
+
+%% Example 1: Minimum stopping distance when using only back brake
+A(:,5) = 0; % A5: Assume friction on the front wheel is negligable when only back-braking
+A(:,
+    
+
+
