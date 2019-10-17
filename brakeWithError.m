@@ -23,7 +23,7 @@ switch brakeCase
     case 1 %front brake only
         % Front brake assumptions
         A(:,4) = 0; % A7: Assume friction on the back wheel is negligable when only front-braking
-        A(:,2) = 0; % A8: Assume that we are operating at the point where the bike is just about to flip (maximum breaking)
+        A(:,2) = 0; % A8: Assume that we are operating at the point where the bike is just about to flip (maximum braking)
     case 2
         % Back brake assumptions
         A(:,5) = 0; % A5: Assume friction on the front wheel is negligable when only back-braking

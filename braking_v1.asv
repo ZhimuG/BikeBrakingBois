@@ -78,18 +78,20 @@ uncertainty = [10, 0.1,pi/180,    0.1,      0.1,      0.1,      0.1,      0.1,  
 [x_LB,x_UB,f_LB,f_MID,f_UB,minus_percent,plus_percent] = worstcase(@frontBrakeWithError,knownVars,uncertainty)
 
 %% Example 5: Stopping distance from front brake as a function of theta and v_COM_0
-num_theta = 100;
-num_v = 100;
-theta_range = linspace(-pi/10,pi/10,num_theta);
+num_theta = 10;
+num_v = 10;
+theta_range = linspace(0,pi,num_theta);
 v_COM_0_range = linspace(0,40,num_v);
 d_stop_mat = zeros(num_theta,num_v);
-v_COM_f = 0;
-for i=1:num_theta
+v_COM_f = 0
+for i=1:1:num_theta
     for j=1:num_v
+        
         Aex2 = A;
         Aex2(:,4) = 0; % A7: Assume friction on the back wheel is negligable when only front-braking
-        Aex2(:,2) = 0; % A8: Assume that we are operating at the point where the bike is just about to flip (maximum breaking
-        b = [M*g*cos(theta_range(i)); -M*g*sin(theta_range(i)); 0]; 
+        Aex2(:,2) = 0; % A8: Assume that we are operating at the point where the bike is just about to flip (maximum breaking)
+
+        b = [M*g*cos(theta); -M*g*sin(theta); 0]; 
         ex2 = linsolve(Aex2,b);
         F_F1 = ex2(5);
         F_N1 = ex2(1);
@@ -97,15 +99,10 @@ for i=1:num_theta
 %         if(F_F1 > mu_s*F_N1) % Check that F_F1 < mu_s 
 %             disp("WARNING: slipping has likely occcured")
 %         end
-        d_stop_mat(i,j) = (v_COM_f^2 - v_COM_0_range(j)^2)/(2*a_x);
+        d_stop(i,j) = (v_COM_f^2 - v_COM_0^2)/(2*a_x);
     end
 end
-[theta_mesh, v_mesh] = meshgrid(theta_range, v_COM_0_range);
-mesh(theta_mesh, v_mesh, d_stop_mat)
-xlabel("Angle of Incline (radians)")
-ylabel("Initial Velocity (m/s)")
-zlabel("Stopping Distance (m)")
-title("Minimum Theoretical Stopping Distance as a Function of Angle of Incline and Velocity")
+
 %% Helper functions
 function d_stop = backBrakeWithError(knownVars)
 g = 9.81;
