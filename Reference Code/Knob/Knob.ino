@@ -43,8 +43,12 @@ int getPotentiometerInput(const int potpin){
 // Convert requested force to PWM signal
 int forceToPWM(float* force){
   int* forcePWM = malloc(sizeof(float)*2);
+  
+  // Need to update mapping functions here after calibration
+  
   forcePWM[0] = map(force[0], 0, 1023, 0, 179);
   forcePWM[1] = map(force[1], 0, 1023, 0, 179);
+
   return forcePWM;
 }
 
