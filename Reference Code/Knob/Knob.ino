@@ -31,3 +31,28 @@ void loop() {
   myservo.write(val);                  // sets the servo position according to the scaled value
   delay(15);                           // waits for the servo to get there
 }
+
+// Modular code starts here:
+// Get potentiometer input
+int getPotentiometerInput(const int potpin){
+  int val = 0;
+  val = analogRead(potpin);
+  return val;
+}
+
+// Convert requested force to PWM signal
+int forceToPWM(float* force){
+  int* forcePWM = malloc(sizeof(float)*2);
+  forcePWM[0] = map(force[0], 0, 1023, 0, 179);
+  forcePWM[1] = map(force[1], 0, 1023, 0, 179);
+  return forcePWM;
+}
+
+// Write PWM signal to servomotor
+void writeToMotor(int* forcePWM, int* servoPorts){
+  PWMServo myservoF, myservoB;
+  myservoF.attach(servoPorts[0]);
+  myservoB.attach(servoPorts[1]);
+  myservoF.write(forcePWM[0]);
+  myservoB.write(forcePWM[1]);
+}
