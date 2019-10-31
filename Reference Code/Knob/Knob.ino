@@ -40,18 +40,6 @@ int getPotentiometerInput(const int potpin){
   return val;
 }
 
-// Convert requested force to PWM signal
-int forceToPWM(float* force){
-  int forcePWM[2];
-  
-  // Need to update mapping functions here after calibration
-  
-  forcePWM[0] = map(force[0], 0, 1023, 0, 179);
-  forcePWM[1] = map(force[1], 0, 1023, 0, 179);
-
-  return forcePWM;
-}
-
 // Write PWM signal to servomotor
 void writeToMotor(int* forcePWM, int* servoPorts){
   PWMServo myservoF, myservoB;
