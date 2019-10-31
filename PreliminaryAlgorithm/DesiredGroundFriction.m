@@ -1,4 +1,4 @@
-function [F_F_desired] = DesiredGroundFriction(p_i,p_i_max,F_F_max)
+function F_F_desired = DesiredGroundFriction(F_F_max,p_i_max,p_i)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 %   Step 1 of preliminary algo
