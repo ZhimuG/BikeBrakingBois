@@ -5,10 +5,9 @@ float g = 9.81; //[m/s^2]
 
 // Calculate F_F_max from MATLAB approximation with final variables:
 // Leave as const for now, move to be calculated within Arduino later
-float F_F_max = 336.34; //[N]
+//float F_F_max = 336.34; //[N]
 
-// Define the potentiometer position corresponding to a maximum braking force [0 1023]
-int p_i_max = 950; 
+int p_i_max = 950; // Define the potentiometer position corresponding to a maximum braking force [0 1023]
 
 float mu_s = 0.4; // Similar to tire rubber on grass (underestimated for normal cycling conditions)
 
@@ -130,11 +129,20 @@ void RunNoSlipNoFlipAlgo(float* F_b_out, float F_F_max,int p_i_max,int p_i, floa
         F_b_out[0] = F_b1_provided;
     }
     
-    Serial.println(F_b_out[0]);
-    Serial.println(F_b_out[1]);
+    //Serial.println(F_b_out[0]);
+    //Serial.println(F_b_out[1]);
   }
   
   //return F_b_out;
+}
+
+float TheoreticalMaximumGroundFriction(float mu_s,float* d_C1_COM,float M,float theta,float* d_C1_C2,float SB1,float R,float r,float I_A2,float* d_C2_COM,float SB2,float I_A1,float* d_A1_COM){
+  float F_F2_max = MaximumGroundFriction(mu_s,d_C1_COM,M,theta,d_C1_C2);
+  float F_F1_NO = MaximumGroundFrictionNoseOver(M, theta, d_A1_COM);
+  float F_F1_Smax = MaximumGroundFriction(mu_s,d_C2_COM,M,theta,d_C1_C2);
+  float F_F1_max = min(F_F1_NO, F_F1_Smax);
+  float F_F_max = F_F2_max + F_F1_max;
+  return F_F_max;
 }
 
 void ForceToPWM(float* PWM, float* F_b_out){
@@ -156,26 +164,65 @@ void MoveMotors(float* PWM){
   //Serial.println("success");
 }
 
+double ReadRPS(){
+  int analogPinPhoto = 1;
+  double current_value = 0;
+  int numDecreasingPoints = 4;
+  int count = 0;
+  double previous_value = 1;
+  elapsedMicros Time;
+  unsigned int previous_time;
+  unsigned int elapsed_time;
+  unsigned int current_time;
+  
+  double current_rps = 0;
+  double angle_btw_holes = 3.14159/3.0;
+  int i = 0;
+  double threshold_fall = 300.0;
+  int numHoles = 6;
+
+  for(i; i<numHoles; i++){
+    current_value = analogRead(analogPinPhoto);
+    if(previous_value > threshold_fall && current_value < threshold_fall){
+      current_time = (unsigned int)Time;
+      elapsed_time = current_time - previous_time;
+      current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
+      previous_time = current_time;
+    }
+    previous_value = current_value;
+    delayMicroseconds(300);
+  }
+  current_rps /= numHoles;
+  return current_rps;
+}
+
+double ReadLinSpeed(){
+  double linSpeed = 20; //[m/s]
+  return linSpeed;
+}
+
 void setup() {}
 
 void loop() {
   // READ INPUTS
-  // Read the input potentiometer position
-  int p_i = ReadPot();
-  // Read the gyroscope angle
-  float theta = ReadGyro();
+  int p_i = ReadPot(); // Read the input potentiometer position
+  float theta = ReadGyro(); // Read the gyroscope angle
 
-  // Preventative System
-  float* F_b_out = (float*)malloc(sizeof(float)*2);
-  float* PWM = (float*)malloc(sizeof(float)*2);
-  // F_b_out[0] = F_b1_out, F_b_out[1] = F_b2_out
-  RunNoSlipNoFlipAlgo(F_b_out, F_F_max,p_i_max,p_i,mu_s,d_C1_COM,M,theta,d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM); 
-  // PWM[0] = PWM_1, PWM[1] = PWM_2
+  // PREVENTATIVE SYSTEM
+  float* F_b_out = (float*)malloc(sizeof(float)*2); // F_b_out[0] = F_b1_out, F_b_out[1] = F_b2_out
+  float* PWM = (float*)malloc(sizeof(float)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
+  
+  float F_F_max = TheoreticalMaximumGroundFriction(mu_s,d_C1_COM,M,0,d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM);
+  RunNoSlipNoFlipAlgo(F_b_out,F_F_max,p_i_max,p_i,mu_s,d_C1_COM,M,theta,d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM); 
+
   ForceToPWM(PWM, F_b_out);
   MoveMotors(PWM);
   
   free(F_b_out);
   free(PWM);
-  // Reactive System
-  // infinite loop that only breaks with a significant change in potentiometer position
+  
+  // REACTIVE SYSTEM
+  // Infinite loop that only breaks with a significant change in potentiometer position
+  double rps = ReadRPS();
+ 
 }
