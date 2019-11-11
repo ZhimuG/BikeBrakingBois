@@ -2,39 +2,18 @@
 
 // Constants:
 float g = 9.81; //[m/s^2]
-
-// Calculate F_F_max from MATLAB approximation with final variables:
-// Leave as const for now, move to be calculated within Arduino later
-//float F_F_max = 336.34; //[N]
-
 int p_i_max = 950; // Define the potentiometer position corresponding to a maximum braking force [0 1023]
-
 float mu_s = 0.4; // Similar to tire rubber on grass (underestimated for normal cycling conditions)
-
-// x,y,z components of distance from C1 to COM
-float d_C1_COM[3] = {0.5, 1, 0}; //[m]
-//malloc(sizeof(float)*3)
-//d_C1_COM[0] = 0.5; d_C1_COM[1] = 1; d_C1_COM[2] = 0; 
-
-// x,y,z components of distance from C1 to C2
-float d_C1_C2[3] = {1.12, 0, 0}; //[m]
-
+float d_C1_COM[3] = {0.5, 1, 0}; //[m] x,y,z components of distance from C1 to COM
+float d_C1_C2[3] = {1.12, 0, 0}; //[m] x,y,z components of distance from C1 to C2
 float M = 80; //[kg]
-
 float SB1 = 0; 
-
 float R = 0.66/2; //[m]
-
 float r = 0.16/2; //[m]
-
-float I_A2 = 0.2*0.2*2; //[kg*m^2]
-
+float I_A2 = 0.9*R*R; //[kg*m^2]
 float d_C2_COM[3] = {0.7, 1, 0}; //[m]
-
 float SB2 = 0; 
-
-float I_A1 = 0.2*0.2*2; //[kg*m^2]
-
+float I_A1 = 0.9*R*R; //[kg*m^2]
 float d_A1_COM[3] = {0.3, 0.6, 0}; //[m]
 
 // Read input potentiometer value
@@ -160,15 +139,15 @@ void ForceToPWM(float* PWM, float* F_b_out){
   //return PWM
 }
 
-void MoveMotors(float* PWM){
+void MoveMotors(int* PWM){
   //Serial.println("success");
 }
 
 double ReadRPS(){
   int analogPinPhoto = 1;
   double current_value = 0;
-  int numDecreasingPoints = 4;
-  int count = 0;
+  //int numDecreasingPoints = 4;
+  //int count = 0;
   double previous_value = 1;
   elapsedMicros Time;
   unsigned int previous_time;
@@ -210,7 +189,7 @@ void loop() {
 
   // PREVENTATIVE SYSTEM
   float* F_b_out = (float*)malloc(sizeof(float)*2); // F_b_out[0] = F_b1_out, F_b_out[1] = F_b2_out
-  float* PWM = (float*)malloc(sizeof(float)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
+  int* PWM = (int*)malloc(sizeof(int)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
   
   float F_F_max = TheoreticalMaximumGroundFriction(mu_s,d_C1_COM,M,0,d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM);
   RunNoSlipNoFlipAlgo(F_b_out,F_F_max,p_i_max,p_i,mu_s,d_C1_COM,M,theta,d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM); 
