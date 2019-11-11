@@ -141,6 +141,9 @@ VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measure
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+double vX = 0.0;
+double vY = 0.0;
+double vZ = 0.0;
 
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
@@ -158,6 +161,7 @@ void dmpDataReady() {
 
 
 void ReadAccel(){
+  elapsedMicros Time;
   // get current FIFO count
     fifoCount = mpu.getFIFOCount();
   if(fifoCount < packetSize){
@@ -173,14 +177,15 @@ void ReadAccel(){
 
     // otherwise, check for DMP data ready interrupt (this should happen frequently)
     } else if (_BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
-
+        unsigned int prev = (unsigned int)Time;
         // read a packet from FIFO
-    while(fifoCount >= packetSize){ // Lets catch up to NOW, someone is using the dreaded delay()!
-      mpu.getFIFOBytes(fifoBuffer, packetSize);
-    // track FIFO count here in case there is > 1 packet available
-    // (this lets us immediately read more without waiting for an interrupt)
-      fifoCount -= packetSize;
-    }
+        while(fifoCount >= packetSize){ // Lets catch up to NOW, someone is using the dreaded delay()!
+          mpu.getFIFOBytes(fifoBuffer, packetSize);
+          // track FIFO count here in case there is > 1 packet available
+          // (this lets us immediately read more without waiting for an interrupt)
+          fifoCount -= packetSize;
+        }
+        unsigned int curr = (unsigned int)Time;
         // display initial world-frame acceleration, adjusted to remove gravity
         // and rotated based on known orientation from quaternion
         mpu.dmpGetQuaternion(&q, fifoBuffer);
@@ -188,12 +193,24 @@ void ReadAccel(){
         mpu.dmpGetGravity(&gravity, &q);
         mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
         mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-        Serial.print("aworld\t");
+        aaWorld.x = aaWorld.x/2048.0*9.80665;
+        aaWorld.y = aaWorld.y/2048.0*9.80665;
+        aaWorld.z = aaWorld.z/2048.0*9.80665;
+        Serial.print("acceleration\t");
         Serial.print(aaWorld.x);
         Serial.print("\t");
         Serial.print(aaWorld.y);
         Serial.print("\t");
         Serial.println(aaWorld.z);
+        vX += aaWorld.x*1.0*(curr-prev)*pow(10,-6);
+        vY += aaWorld.y*1.0*(curr-prev)*pow(10,-6);
+        vZ += aaWorld.z*1.0*(curr-prev)*pow(10,-6);
+        Serial.print("velocity\t");
+        Serial.print(vX);
+        Serial.print("\t");
+        Serial.print(vY);
+        Serial.print("\t");
+        Serial.println(vZ);
     
         // blink LED to indicate activity
         blinkState = !blinkState;
@@ -201,7 +218,11 @@ void ReadAccel(){
     }
 }
 
-
+void readVelocity(){
+  elapsedMicros Time;
+  unsigned int prev = (unsigned int)Time;
+  
+}
 // ================================================================
 // ===                      INITIAL SETUP                       ===
 // ================================================================
@@ -247,10 +268,10 @@ void setup() {
     devStatus = mpu.dmpInitialize();
 
     // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(220);
-    mpu.setYGyroOffset(76);
-    mpu.setZGyroOffset(-85);
-    mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
+    mpu.setXGyroOffset(0);
+    mpu.setYGyroOffset(0);
+    mpu.setZGyroOffset(0);
+    mpu.setZAccelOffset(1688); // 1688 factory default for my test chip
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
