@@ -16,17 +16,21 @@ float SB2 = 0;
 float I_A1 = 0.9*R*R; //[kg*m^2]
 float d_A1_COM[3] = {0.3, 0.6, 0}; //[m]
 
+//////////////////////////////////////////////////////////////////////////////////////// Need to write this
 // Read input potentiometer value
 int ReadPot(){
   int p_i = 500;
   return p_i;
 }
+////////////////////////////////////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////////////////////////////////// Need to write this
 // Read the input angle of incline (in radians)
 float ReadGyro(){
   float theta = 0.1; //[rad]
   return theta;
 }
+//////////////////////////////////////////////////////////////////////////////////////// 
 
 float DesiredGroundFriction(float F_F_max, int p_i_max, int p_i){
   float F_F_desired = min(F_F_max, F_F_max*p_i/p_i_max);
@@ -66,8 +70,6 @@ void RunNoSlipNoFlipAlgo(float* F_b_out, float F_F_max,int p_i_max,int p_i, floa
   float F_F2_max = MaximumGroundFriction(mu_s,d_C1_COM,M,theta,d_C1_C2);
   // Step 3: 
   float leftover1 = F_F_desired - (F_F2_max - SB1);
-  //float F_b_out[2] = {0,0};
-  //float* F_b_out = malloc(sizeof(float)*2);
   float F_F2_provided, F_b2_provided;
   if(leftover1 <= 0){
     // Step 4:
@@ -83,11 +85,11 @@ void RunNoSlipNoFlipAlgo(float* F_b_out, float F_F_max,int p_i_max,int p_i, floa
     F_b_out[1] = F_b2_provided;
     
     // Step 6:
-    // See value of d_A1_COM in main, it is purposely adjusted forwards
+    // See value of d_A1_COM, it is purposely adjusted forwards
     float F_F1_NO = MaximumGroundFrictionNoseOver(M, theta, d_A1_COM);
     
     // Step 7:
-    // d_C2_COM(1) = d_C2_COM(1) - 0.1; % Adjust COM backwards
+    d_C2_COM(0) = d_C2_COM(0) - 0.2; % Adjust COM backwards
     float F_F1_Smax = MaximumGroundFriction(mu_s,d_C2_COM,M,theta,d_C1_C2);
 
     // Step 8:
@@ -124,6 +126,7 @@ float TheoreticalMaximumGroundFriction(float mu_s,float* d_C1_COM,float M,float 
   return F_F_max;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////// Need to write this (and run calibration test)
 void ForceToPWM(float* PWM, float* F_b_out){
   //float PWM[2] = {20, 80};
   //return PWM;
@@ -138,11 +141,15 @@ void ForceToPWM(float* PWM, float* F_b_out){
   PWM[1] = 80;
   //return PWM
 }
+////////////////////////////////////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////////////////////////////////// Need to write this
 void MoveMotors(int* PWM){
   //Serial.println("success");
 }
+////////////////////////////////////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////////////////////////////////// Could use more sophisticated method here
 double ReadRPS(){
   int analogPinPhoto = 1;
   double current_value = 0;
@@ -174,11 +181,14 @@ double ReadRPS(){
   current_rps /= numHoles;
   return current_rps;
 }
+////////////////////////////////////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////////////////////////////////// Need to write this
 double ReadLinSpeed(){
   double linSpeed = 20; //[m/s]
   return linSpeed;
 }
+////////////////////////////////////////////////////////////////////////////////////////
 
 void setup() {}
 
@@ -199,9 +209,18 @@ void loop() {
   
   free(F_b_out);
   free(PWM);
-  
+
+  //////////////////////////////////////////////////////////////////////////////////////// Need to update this
   // REACTIVE SYSTEM
   // Infinite loop that only breaks with a significant change in potentiometer position
   double rps = ReadRPS();
- 
+  ////////////////////////////////////////////////////////////////////////////////////////
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Need to write the data to the teensy at each time step
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Need to write a function to activate the buzzer at a certain velocity
+  ///////////////////////////////////////////////////////////////////////////////////////
 }
