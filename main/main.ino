@@ -1,6 +1,30 @@
 // #include <Servo.h>
+#include <PWMServo.h>
+#include "SdFat.h"
+#include "BufferedPrint.h"
+
+PWMServo myservoF;  // create servo object to control a servo
+PWMServo myservoB;  // create servo object to control a servo
+
+// Structs:
+
+typedef struct{
+    int angle[3];
+    double accel[3];
+    double spd[3];
+}accelGyro;
+
+typedef struct{
+    int pot;
+    accelGyro meters[2];
+    int PWM[2];
+    double RPS[2];
+    unsigned int t;
+}outputData;
 
 // Constants:
+
+// For RunNoSlipNoFlipAlgo()
 float g = 9.81; //[m/s^2]
 int p_i_max = 950; // Define the potentiometer position corresponding to a maximum braking force [0 1023]
 float mu_s = 0.4; // Similar to tire rubber on grass (underestimated for normal cycling conditions)
@@ -16,17 +40,66 @@ float SB2 = 0;
 float I_A1 = 0.9*R*R; //[kg*m^2]
 float d_A1_COM[3] = {0.3, 0.6, 0}; //[m]
 
-//////////////////////////////////////////////////////////////////////////////////////// Need to write this
+// For ReadPot():
+const int potpin = A0;  // analog pin used to connect the potentiometer
+
+// For SD write:
+// SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
+// 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
+#define SD_FAT_TYPE 0
+/*
+  Change the value of SD_CS_PIN if you are using SPI and
+  your hardware does not use the default value, SS.
+  Common values are:
+  Arduino Ethernet shield: pin 4
+  Sparkfun SD shield: pin 8
+  Adafruit SD shields and modules: pin 10
+*/
+
+// SDCARD_SS_PIN is defined for the built-in SD on some boards.
+#ifndef SDCARD_SS_PIN
+const uint8_t SD_CS_PIN = SS;
+#else  // SDCARD_SS_PIN
+// Assume built-in SD is used.
+const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
+#endif  // SDCARD_SS_PIN
+// Try to select the best SD card configuration.
+#if HAS_SDIO_CLASS
+#define SD_CONFIG SdioConfig(FIFO_SDIO)
+#elif ENABLE_DEDICATED_SPI
+#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI)
+#else  // HAS_SDIO_CLASS
+#define SD_CONFIG SdSpiConfig(SD_CS_PIN, SHARED_SPI)
+#endif  // HAS_SDIO_CLASS
+#if SD_FAT_TYPE == 0
+SdFat sd;
+typedef File file_t;
+#elif SD_FAT_TYPE == 1
+SdFat32 sd;
+typedef File32 file_t;
+#elif SD_FAT_TYPE == 2
+SdExFat sd;
+typedef ExFile file_t;
+#elif SD_FAT_TYPE == 3
+SdFs sd;
+typedef FsFile file_t;
+#else  // SD_FAT_TYPE
+#error Invalid SD_FAT_TYPE
+#endif  // SD_FAT_TYPE
+// number of lines to print
+const uint16_t N_PRINT = 20000;
+
+////////////////////////////////////////////////////////////////////////////////////////
 // Read input potentiometer value
-int ReadPot(){
-  int p_i = 500;
-  return p_i;
+int ReadPot(const int potpin){
+  int val = analogRead(potpin);
+  return val;
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////// Need to write this
 // Read the input angle of incline (in radians)
-float ReadGyro(){
+float ReadAngle(){
   float theta = 0.1; //[rad]
   return theta;
 }
@@ -89,7 +162,7 @@ void RunNoSlipNoFlipAlgo(float* F_b_out, float F_F_max,int p_i_max,int p_i, floa
     float F_F1_NO = MaximumGroundFrictionNoseOver(M, theta, d_A1_COM);
     
     // Step 7:
-    d_C2_COM(0) = d_C2_COM(0) - 0.2; % Adjust COM backwards
+    d_C2_COM[0] = d_C2_COM[0] - 0.2; // Adjust COM backwards
     float F_F1_Smax = MaximumGroundFriction(mu_s,d_C2_COM,M,theta,d_C1_C2);
 
     // Step 8:
@@ -127,7 +200,7 @@ float TheoreticalMaximumGroundFriction(float mu_s,float* d_C1_COM,float M,float 
 }
 
 //////////////////////////////////////////////////////////////////////////////////////// Need to write this (and run calibration test)
-void ForceToPWM(float* PWM, float* F_b_out){
+void ForceToPWM(int* PWM, float* F_b_out){
   //float PWM[2] = {20, 80};
   //return PWM;
 //  float calibration1 = 1;
@@ -143,15 +216,18 @@ void ForceToPWM(float* PWM, float* F_b_out){
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////////////////////// Need to write this
+//////////////////////////////////////////////////////////////////////////////////////// 
 void MoveMotors(int* PWM){
   //Serial.println("success");
+  myservoF.write(PWM[0]);
+  myservoB.write(PWM[1]);
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////////////////////// Could use more sophisticated method here
-double ReadRPS(){
-  int analogPinPhoto = 1;
+//////////////////////////////////////////////////////////////////////////////////////// Could use more sophisticated method here. Need to do this for both wheels
+void ReadRPS(double* RPS){
+  int analogPinPhoto1 = 1;
+  int analogPinPhoto2 = 2;
   double current_value = 0;
   //int numDecreasingPoints = 4;
   //int count = 0;
@@ -167,8 +243,8 @@ double ReadRPS(){
   double threshold_fall = 300.0;
   int numHoles = 6;
 
-  for(i; i<numHoles; i++){
-    current_value = analogRead(analogPinPhoto);
+  for(i=0; i<numHoles; i++){
+    current_value = analogRead(analogPinPhoto1);
     if(previous_value > threshold_fall && current_value < threshold_fall){
       current_time = (unsigned int)Time;
       elapsed_time = current_time - previous_time;
@@ -179,7 +255,24 @@ double ReadRPS(){
     delayMicroseconds(300);
   }
   current_rps /= numHoles;
-  return current_rps;
+  RPS[0] = current_rps;
+
+  current_value = 0;
+  previous_value = 1;
+  
+  for(i=0; i<numHoles; i++){
+  current_value = analogRead(analogPinPhoto2);
+  if(previous_value > threshold_fall && current_value < threshold_fall){
+    current_time = (unsigned int)Time;
+    elapsed_time = current_time - previous_time;
+    current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
+    previous_time = current_time;
+  }
+  previous_value = current_value;
+  delayMicroseconds(300);
+  } 
+  current_rps /= numHoles;
+  RPS[1] = current_rps;
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -190,12 +283,77 @@ double ReadLinSpeed(){
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
-void setup() {}
+void writeSD(outputData* data){
+  file_t file;
+  BufferedPrint<file_t, 64> bp;
+
+  //--------------------------------------------
+  // Change the file name if necessary
+  char fileName[13] = "Test0.txt";
+  //--------------------------------------------
+  
+  if (!file.open(fileName, O_RDWR | O_CREAT | O_TRUNC)) {
+      sd.errorHalt(&Serial, F("open failed"));
+    }
+  if (1) {
+    bp.begin(&file);
+  }
+
+  //-----------------------------------------------
+  // Change this section if input data type changes
+  //file.println(i);
+
+  for(int j=0; j<3000; j++){
+        file.print(data[j].t);
+        file.print(data[j].pot);
+        for(int i = 0; i<3; i++){
+            file.print(data[j].meters[0].angle[i]);
+        }
+  for(int i = 0; i<3; i++){
+            file.print(data[j].meters[0].accel[i]);
+        }
+        for(int i = 0; i<3; i++){
+            file.print(data[j].meters[0].spd[i]);
+        }
+        for(int i = 0; i<3; i++){
+            file.print(data[j].meters[1].angle[i]);
+        }
+  for(int i = 0; i<3; i++){
+            file.print(data[j].meters[1].accel[i]);
+        }
+        for(int i = 0; i<3; i++){
+            file.print(data[j].meters[1].spd[i]);
+        }
+        file.print(data[j].PWM[0]);
+        file.print(data[j].PWM[1]);
+        file.print(data[j].RPS[0]);
+        file.print(data[j].RPS[1]);
+}
+  //-----------------------------------------------
+  
+  if (1) {
+    bp.sync();
+  }
+  if (file.getWriteError()) {
+    sd.errorHalt(&Serial, F("write failed"));
+  }
+  double s = file.fileSize();
+  file.close();
+}
+
+void setup() {
+  myservoB.attach(SERVO_PIN_B);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(SERVO_PIN_A);         // attaches the servo on pin 9 to the servo object
+  //Serial.begin(9600);
+  if (!sd.begin(SD_CONFIG)) {
+    sd.initErrorHalt(&Serial);
+  }
+}
 
 void loop() {
   // READ INPUTS
-  int p_i = ReadPot(); // Read the input potentiometer position
-  float theta = ReadGyro(); // Read the gyroscope angle
+  int p_i = ReadPot(potpin); // Read the input potentiometer position
+  float theta = ReadAngle(); // Read the gyroscope angle
 
   // PREVENTATIVE SYSTEM
   float* F_b_out = (float*)malloc(sizeof(float)*2); // F_b_out[0] = F_b1_out, F_b_out[1] = F_b2_out
@@ -212,10 +370,15 @@ void loop() {
 
   //////////////////////////////////////////////////////////////////////////////////////// Need to update this
   // REACTIVE SYSTEM
+  double* RPS = (double*)malloc(sizeof(double)*2);
+  
   // Infinite loop that only breaks with a significant change in potentiometer position
-  double rps = ReadRPS();
+  ReadRPS(RPS);
   ////////////////////////////////////////////////////////////////////////////////////////
 
+  // after loop:
+  free(RPS);
+  
   ///////////////////////////////////////////////////////////////////////////////////////
   // Need to write the data to the teensy at each time step
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -223,4 +386,10 @@ void loop() {
   ///////////////////////////////////////////////////////////////////////////////////////
   // Need to write a function to activate the buzzer at a certain velocity
   ///////////////////////////////////////////////////////////////////////////////////////
+
+  // This is super weird we need to fix this (there will be a memory leak cuz there is no good time to free the data)
+  // Should probably just write to the file each time
+  outputData* data = (outputData*)malloc(sizeof(outputData)*3000);
+  free(data)
+
 }
