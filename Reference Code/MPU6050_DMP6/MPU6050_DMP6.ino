@@ -46,7 +46,7 @@ THE SOFTWARE.
 
 // I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
 // for both classes must be in the include path of your project
-#include "I2Cdev.h"
+/* #include "I2Cdev.h"
 
 #include "MPU6050_6Axis_MotionApps20.h"
 //#include "MPU6050.h" // not necessary if using MotionApps include file
@@ -55,13 +55,12 @@ THE SOFTWARE.
 // is used in I2Cdev.h
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
-#endif
+#endif */
 
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
 // AD0 low = 0x68 (default for SparkFun breakout and InvenSense evaluation board)
 // AD0 high = 0x69
-MPU6050 mpu;
 //MPU6050 mpu(0x69); // <-- use for AD0 high
 
 /* =========================================================================
@@ -100,7 +99,7 @@ MPU6050 mpu;
 // from the FIFO. Note this also requires gravity vector calculations.
 // Also note that yaw/pitch/roll angles suffer from gimbal lock (for
 // more info, see: http://en.wikipedia.org/wiki/Gimbal_lock)
-#define OUTPUT_READABLE_YAWPITCHROLL
+//#define OUTPUT_READABLE_YAWPITCHROLL
 
 // uncomment "OUTPUT_READABLE_REALACCEL" if you want to see acceleration
 // components with gravity removed. This acceleration reference frame is
@@ -119,17 +118,25 @@ MPU6050 mpu;
 // format used for the InvenSense teapot demo
 //#define OUTPUT_TEAPOT
 
-
+#include "Wire.h"
+#include "I2Cdev.h"
+#include "MPU6050_6Axis_MotionApps20.h"
 
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
 #define LED_PIN 13 // (Arduino is 13, Teensy is 11, Teensy++ is 6)
+
+MPU6050 mpuF;
+MPU6050 mpuB;
+
 bool blinkState = false;
 
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
-uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
-uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
+uint8_t devStatusF;      // return status after each device operation (0 = success, !0 = error)
+uint8_t devStatusB;
+uint16_t packetSizeF;    // expected DMP packet size (default is 42 bytes)
+uint16_t packetSizeB;
 uint16_t fifoCount;     // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64]; // FIFO storage buffer
 
@@ -137,17 +144,14 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorInt16 aa;         // [x, y, z]            accel sensor measurements
 VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
-VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
+VectorInt16 linAccel;    // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;    // [x, y, z]            gravity vector
-float euler[3];         // [psi, theta, phi]    Euler angle container
+VectorFloat linSpeed;
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-double vX = 0.0;
-double vY = 0.0;
-double vZ = 0.0;
 
-// packet structure for InvenSense teapot demo
+/* // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-
+ */
 
 
 // ================================================================
@@ -160,7 +164,66 @@ void dmpDataReady() {
 }
 
 
-void ReadAccel(){
+//-----------------------------------------------------------------
+//--------------- Read Linear Acceleration ------------------------
+void ReadLinAccel(MPU6050 mpu){
+	fifoCount = mpu.getFIFOCount();
+	if(fifoCount >= 1024){
+		mpu.resetFIFO();
+	}
+	else if (_BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
+		while(fifoCount >= packetSize){
+			mpu.getFIFOBytes(fifoBuffer, packetSize);
+			fifoCount -= packetSize;
+		}
+		mpu.dmpGetQuaternion(&q, fifoBuffer);
+        mpu.dmpGetAccel(&aa, fifoBuffer);
+        mpu.dmpGetGravity(&gravity, &q);
+        mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+        mpu.dmpGetLinearAccelInWorld(&linAccel, &aaReal, &q);
+        linAccel.x = linAccel.x/2048.0*9.80665;
+        linAccel.y = linAccel.y/2048.0*9.80665;
+        linAccel.z = linAccel.z/2048.0*9.80665;
+	}
+}
+//-----------------------------------------------------------------
+
+
+
+//-----------------------------------------------------------------
+//-------------- Read Linear Speed --------------------------------
+void ReadLinSpeed(MPU6050 mpu){
+	unsigned int prev = (unsigned int)Time;
+	ReadLinAccel();
+	unsigned int curr = (unsigned int)Time;
+	linSpeed.x += linAccel.x*1.0*(curr-prev)*pow(10,-6);
+    linSpeed.y += linAccel.y*1.0*(curr-prev)*pow(10,-6);
+    linSpeed.z += linAccel.z*1.0*(curr-prev)*pow(10,-6);
+}
+//-----------------------------------------------------------------
+
+
+
+//-----------------------------------------------------------------
+//-------------- Read Angles --------------------------------------
+void ReadAngles(MPU6050 mpu){
+	fifoCount = mpu.getFIFOCount();
+	if(fifoCount >= 1024){
+		mpu.resetFIFO();
+	}
+	else if (_BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
+		while(fifoCount >= packetSize){
+			mpu.getFIFOBytes(fifoBuffer, packetSize);
+			fifoCount -= packetSize;
+		}
+	    mpu.dmpGetQuaternion(&q, fifoBuffer);
+        mpu.dmpGetGravity(&gravity, &q);
+        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+	}
+}
+//-----------------------------------------------------------------
+
+/* void ReadLinSpeed(VectorFloat linSpeed){
   elapsedMicros Time;
   // get current FIFO count
     fifoCount = mpu.getFIFOCount();
@@ -169,14 +232,14 @@ void ReadAccel(){
       // This is blocking so don't do it   while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
   }
     // check for overflow (this should never happen unless our code is too inefficient)
-    else if (fifoCount >= 1024) {
+  else if (fifoCount >= 1024) {
         // reset so we can continue cleanly
         mpu.resetFIFO();
       //  fifoCount = mpu.getFIFOCount();  // will be zero after reset no need to ask
-        Serial.println(F("FIFO overflow!"));
+        //Serial.println(F("FIFO overflow!"));
 
     // otherwise, check for DMP data ready interrupt (this should happen frequently)
-    } else if (_BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
+  } else if (_BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
         unsigned int prev = (unsigned int)Time;
         // read a packet from FIFO
         while(fifoCount >= packetSize){ // Lets catch up to NOW, someone is using the dreaded delay()!
@@ -216,14 +279,48 @@ void ReadAccel(){
         blinkState = !blinkState;
         digitalWrite(LED_PIN, blinkState);
     }
-}
+} */
 
-void readVelocity(){
-  elapsedMicros Time;
-  unsigned int prev = (unsigned int)Time;
-  
+
+//-----------------------------------------------------------------
+//------------------- Set Up Function -----------------------------
+void setup(){
+	Wire.begin();
+	Serial.begin(9600);
+	mpuF.initialize();
+	mpuB.initialize();
+	Wire.setSDA(18);
+	Wire.setSCL(19);
+	Wire.setSDA(38);
+	Wire.setSCL(37);
+	mpuF.setXGyroOffset(0);
+    mpuF.setYGyroOffset(0);
+    mpuF.setZGyroOffset(0);
+    mpuF.setZAccelOffset(1688);
+	mpuB.setXGyroOffset(0);
+    mpuB.setYGyroOffset(0);
+    mpuB.setZGyroOffset(0);
+    mpuB.setZAccelOffset(1688);
+    devStatusF = mpuF.dmpInitialize();
+    devStatusB = mpuB.dmpInitialize();
+	if (devStatusF == 0 && devStatusB == 0) {
+        mpuF.CalibrateAccel(6);
+        mpuF.CalibrateGyro(6);
+        mpuF.PrintActiveOffsets();
+		mpuB.CalibrateAccel(6);
+        mpuB.CalibrateGyro(6);
+        mpuB.PrintActiveOffsets();
+        mpuF.setDMPEnabled(true);
+		mpuB.setDMPEnabled(true);
+        dmpReady = true;
+        packetSizeF = mpuF.dmpGetFIFOPacketSize();
+		packetSizeB = mpuB.dmpGetFIFOPacketSize();
+    }else{return;}
 }
-// ================================================================
+//-----------------------------------------------------------------
+
+
+/* // ================================================================
 // ===                      INITIAL SETUP                       ===
 // ================================================================
 
@@ -308,7 +405,7 @@ void setup() {
 
     // configure LED for output
     pinMode(LED_PIN, OUTPUT);
-}
+} */
 
 
 
@@ -317,5 +414,5 @@ void setup() {
 // ================================================================
 
 void loop() {
-	ReadAccel();
+	ReadLinAccel(mpuF);
 }
