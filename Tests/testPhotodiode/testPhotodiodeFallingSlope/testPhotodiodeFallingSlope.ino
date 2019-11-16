@@ -144,6 +144,9 @@ double readRPS(int count, double prev, int maxCount, unsigned int startT){
 		count++;
 		return readRPS(count, current_value, maxCount, startT);
 	}
+	else{
+		return -1.0;
+	}
 }
 
 void loop(){
