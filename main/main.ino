@@ -41,7 +41,7 @@ float I_A1 = 0.9*R*R; //[kg*m^2]
 float d_A1_COM[3] = {0.3, 0.6, 0}; //[m]
 
 // For ReadPot():
-const int potpin = A0;  // analog pin used to connect the potentiometer
+const int potpin = A3;  // analog pin used to connect the potentiometer
 
 // For SD write:
 // SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,

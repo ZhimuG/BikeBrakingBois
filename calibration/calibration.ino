@@ -1,0 +1,301 @@
+#include "SdFat.h"
+#include "BufferedPrint.h"
+#include <PWMServo.h>
+
+PWMServo myservoF;  // create servo object to control a servo
+PWMServo myservoB;  // create servo object to control a servo
+
+// For SD write:
+// SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
+// 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
+#define SD_FAT_TYPE 0
+/*
+  Change the value of SD_CS_PIN if you are using SPI and
+  your hardware does not use the default value, SS.
+  Common values are:
+  Arduino Ethernet shield: pin 4
+  Sparkfun SD shield: pin 8
+  Adafruit SD shields and modules: pin 10
+*/
+
+// SDCARD_SS_PIN is defined for the built-in SD on some boards.
+#ifndef SDCARD_SS_PIN
+const uint8_t SD_CS_PIN = SS;
+#else  // SDCARD_SS_PIN
+// Assume built-in SD is used.
+const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
+#endif  // SDCARD_SS_PIN
+// Try to select the best SD card configuration.
+#if HAS_SDIO_CLASS
+#define SD_CONFIG SdioConfig(FIFO_SDIO)
+#elif ENABLE_DEDICATED_SPI
+#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI)
+#else  // HAS_SDIO_CLASS
+#define SD_CONFIG SdSpiConfig(SD_CS_PIN, SHARED_SPI)
+#endif  // HAS_SDIO_CLASS
+#if SD_FAT_TYPE == 0
+SdFat sd;
+typedef File file_t;
+#elif SD_FAT_TYPE == 1
+SdFat32 sd;
+typedef File32 file_t;
+#elif SD_FAT_TYPE == 2
+SdExFat sd;
+typedef ExFile file_t;
+#elif SD_FAT_TYPE == 3
+SdFs sd;
+typedef FsFile file_t;
+#else  // SD_FAT_TYPE
+#error Invalid SD_FAT_TYPE
+#endif  // SD_FAT_TYPE
+// number of lines to print
+const uint16_t N_PRINT = 20000;
+
+const int potpin = A3;  // analog pin used to connect the potentiometer
+int val;    // variable to read the value from the analog pin
+char filename[12] = "TestPot.txt";
+
+int loopCount = 0;
+
+void setup() {
+  // put your setup code here, to run once:
+  myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
+  //  Serial.begin(9600);
+  if (!sd.begin(SD_CONFIG)) {
+    sd.initErrorHalt(&Serial);
+  }
+}
+
+void writeSD(double* data){
+  file_t file;
+  BufferedPrint<file_t, 64> bp;
+
+  //--------------------------------------------
+  // Change the file name if necessary
+  char fileName[13] = "TestPot.txt";
+  //char fileName[10] = "TestPot.txt"; //filename;
+  
+  //--------------------------------------------
+  
+  if (!file.open(fileName, O_RDWR | O_APPEND)) {
+      sd.errorHalt(&Serial, F("open failed"));
+    }
+  if (1) {
+    bp.begin(&file);
+  }
+
+  //-----------------------------------------------
+  // Change this section if input data type changes
+  int data_arr_len = 6;
+  for(int i=0; i<data_arr_len; i++){
+    file.print(data[i]);
+    file.print(" ");
+  }
+  file.println();
+  
+  //-----------------------------------------------
+  
+  if (1) {
+    bp.sync();
+  }
+  if (file.getWriteError()) {
+    sd.errorHalt(&Serial, F("write failed"));
+  }
+  double s = file.fileSize();
+  file.close();
+}
+
+void ReadRPS(double* RPS){
+  int analogPinPhoto1 = 31;
+  int analogPinPhoto2 = 32;
+  double current_value = 0;
+  //int numDecreasingPoints = 4;
+  //int count = 0;
+  double previous_value = 1;
+  elapsedMicros Time;
+  unsigned int previous_time;
+  unsigned int elapsed_time;
+  unsigned int current_time;
+  
+  double current_rps = 0;
+  double angle_btw_holes = 3.14159/8.0;
+  int i = 0;
+  double threshold_fall = 100.0;
+  int numHoles = 6;
+  int noHoleCounter = 0;
+  int thresh = 10000;
+
+  while(i<numHoles){
+    current_value = analogRead(analogPinPhoto1);
+//    Serial.println(current_value);
+    if(previous_value > threshold_fall && current_value < threshold_fall){
+      current_time = (unsigned int)Time;
+      elapsed_time = current_time - previous_time;
+      current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
+      previous_time = current_time;
+      i++;
+    }
+    previous_value = current_value;
+    delayMicroseconds(300);
+//    delayMicroseconds(3);
+    if(noHoleCounter>thresh){
+      RPS[0] = 0;
+      break;
+    }
+    noHoleCounter++;
+  }
+  current_rps /= numHoles;
+  RPS[0] = current_rps;
+
+//  current_value = 0;
+//  previous_value = 1;
+//
+//  i=0;
+//  while(i<numHoles){
+//  current_value = analogRead(analogPinPhoto2);
+//  if(previous_value > threshold_fall && current_value < threshold_fall){
+//    current_time = (unsigned int)Time;
+//    elapsed_time = current_time - previous_time;
+//    current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
+//    previous_time = current_time;
+//    i++;
+//  }
+//  previous_value = current_value;
+//  delayMicroseconds(300);
+//  } 
+//  current_rps /= numHoles;
+  RPS[1] = current_rps;
+
+//  RPS[1] = -20;
+//  RPS[0] = -21;
+}
+
+void MoveMotors(int* PWM){
+  //Serial.println("success");
+  myservoF.write(PWM[0]);
+  myservoB.write(PWM[1]);
+}
+
+// Read input potentiometer value
+int ReadPot(const int potpin){
+  int val = analogRead(potpin);
+  return val;
+}
+
+void writeSD_cal(double* RPS_arr, float dt, int N, int PWM){
+  file_t file;
+  BufferedPrint<file_t, 64> bp;
+
+  //--------------------------------------------
+  // Change the file name if necessary
+  char fileName[23] = "Calibration_wheel0.txt";
+  //char fileName[10] = "TestPot.txt"; //filename;
+  
+  //--------------------------------------------
+  
+  if (!file.open(fileName, O_RDWR | O_APPEND)) {
+      sd.errorHalt(&Serial, F("open failed"));
+    }
+  if (1) {
+    bp.begin(&file);
+  }
+
+  //-----------------------------------------------
+  // Change this section if input data type changes
+//  int data_arr_len = 6;
+  file.print(PWM);
+  file.print(", ");
+  file.print(dt);
+  file.print(", ");
+  file.print(N);
+  file.print(", ");
+  for(int i=0; i<N; i++){
+    file.print(RPS_arr[i]);
+    file.print(" ");
+  }
+  file.println();
+  
+  //-----------------------------------------------
+  
+  if (1) {
+    bp.sync();
+  }
+  if (file.getWriteError()) {
+    sd.errorHalt(&Serial, F("write failed"));
+  }
+  double s = file.fileSize();
+  file.close();
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  
+//  val = analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
+//  val = map(val, 0, 320, 0, 179);     // scale it to use it with the servo (value between 0 and 180)
+//  Serial.println(val);
+//  writeSD(val, filename);
+//  double data_arr[6] = {val, 2*val, val, val, val, val};
+//  writeSD(data_arr);
+//  delay(1000);
+
+
+//  double* RPS = (double*)malloc(sizeof(double)*2);
+//  ReadRPS(RPS);
+////  RPS[0] = -1;
+////  RPS[1] = -2;
+//  int* PWM = (int*)malloc(sizeof(int)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
+//  PWM[0] = 180;
+//  PWM[1] = 180;
+//  MoveMotors(PWM);
+//  
+//  Serial.println(RPS[0]);
+//  Serial.println(RPS[1]);
+//  double data_arr[6] = {val, 2*val, RPS[0], RPS[1], PWM[0], PWM[1]};
+//  writeSD(data_arr);
+//  delay(1000);
+//  free(RPS);
+//  free(PWM);
+
+  
+  // Step 1: Reset motor positions to zero
+  loopCount++;
+  int stepSize = 10;
+  int* PWM = (int*)malloc(sizeof(int)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
+  PWM[0] = 0;
+  PWM[1] = 0;
+  MoveMotors(PWM);
+  // Step 2: Choose PWM 
+  //PWM[0] = 100;
+  PWM[0] = stepSize*loopCount;
+  PWM[1] = 0;
+  // Step 3: Spin wheel and start the program 
+  // monitor the pot in a while loop to trigger program
+  int pot = ReadPot(potpin);
+  int thresh = 20;
+  while(pot>thresh){
+        pot = ReadPot(potpin);
+        delay(10);
+      }
+  // Step 4: read the initial RPS (RPS_arr[0]) 
+  int N = 1000;
+  float dt = 10; //[ms]
+  double RPS_arr[N];
+  double* RPS = (double*)malloc(sizeof(double)*2);
+  // Step 5: Apply brake at PWM for N measurements
+  MoveMotors(PWM);
+  for(int i=0;i<N;i++){
+    // Step 6: read the RPS every dt RPS_arr[i]
+    ReadRPS(RPS);
+    RPS_arr[i] = RPS[0];
+    Serial.println(RPS[0]);
+    delay(dt);
+//    if(RPS[0] == 0){
+//      break;
+//    }
+  }
+  // Step 7: Write RPS_arr, dt, N
+  writeSD_cal(RPS_arr, dt, N, PWM[0]);
+  free(PWM);
+  free(RPS);
+}
