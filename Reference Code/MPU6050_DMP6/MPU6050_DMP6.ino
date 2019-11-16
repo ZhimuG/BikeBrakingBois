@@ -146,7 +146,7 @@ VectorInt16 aa;         // [x, y, z]            accel sensor measurements
 VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
 VectorInt16 linAccel;    // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;    // [x, y, z]            gravity vector
-VectorFloat linSpeed;
+VectorFloat linSpeed = VectorFloat();
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 /* // packet structure for InvenSense teapot demo
