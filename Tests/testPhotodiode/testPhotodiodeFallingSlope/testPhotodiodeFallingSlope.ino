@@ -135,10 +135,10 @@ double readRPSRate(int count, double previous_value, int maxCount, unsigned int 
 			Serial.println();
 		}
 		count++;
-		return readRPS(count, current_value, maxCount, previous_time);
+		return readRPSRate(count, current_value, maxCount, previous_time);
 	}
 	else{
-		return readRPS(count, current_value, maxCount, previous_time);
+		return readRPSRate(count, current_value, maxCount, previous_time);
 	}
 }
 //------------------------------------------------------------------------------------
@@ -170,10 +170,10 @@ double readRPSSign(int count, double previous_value, int maxCount, unsigned int 
 		if(previous_value < 0){
 			count++;
 		}
-		return readRPS(count, current_value, maxCount, previous_time);
+		return readRPSSign(count, current_value, maxCount, previous_time);
 	}
 	else{
-		return readRPS(count, -current_value, maxCount, previous_time);
+		return readRPSSign(count, -current_value, maxCount, previous_time);
 	}
 }
 //------------------------------------------------------------------------------------
