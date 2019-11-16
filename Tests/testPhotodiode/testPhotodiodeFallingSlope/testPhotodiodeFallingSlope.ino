@@ -14,25 +14,13 @@
 
 int analogPinPhoto = 31;
 double dSlope = 0.1;
-//double threshold2 = 0.1;
-double current_value = 0.0;
 int numPoints = 4;
-int count = 0;
-double previous_value = 0.0;
+elapsedMicros Time;
+bool debug = false;
 //elapsedMicros current_time;
 //elapsedMicros previous_time;
 //elapsedMicros elapsed_time;
-elapsedMicros Time;
-unsigned int previous_time;
-unsigned int elapsed_time;
-unsigned int current_time;
-bool debug = false;
-
-
-double current_rps = 0;
-double angle_btw_holes = 3.14159/3.0;
-int i = 0;
-double threshold_fall = 250.0;
+//double threshold2 = 0.1;
 
 
 void setup() {
@@ -122,16 +110,21 @@ void setup() {
   
 } */
 
-double readRPS(int count, double prev, int maxCount, unsigned int startT){
-	current_value = analogRead(analogPinPhoto);
+
+//------------------------------------------------------------------------------------
+//--------------------------- Rate of change -----------------------------------------
+double readRPSRate(int count, double previous_value, int maxCount, unsigned int previous_time){
+	double current_value = analogRead(analogPinPhoto);
 	// To count every other point, repeat above line
+	unsigned int current_time = (unsigned int)Time;
 	if(count == maxCount){
-		currTime = Time;
 		if(debug){
-			Serial.print(startT);
-			Serial.print(currTime);
+			Serial.print(previous_time);
+			Serial.print("\t");
+			Serial.print(current_time);
+			Serial.println();
 		}
-		return maxCount/((currTime-startT)*pow(10.0,-6)*16.0);
+		return maxCount/((current_time-previous_time)*pow(10.0,-6)*16.0);
 	}
 	// falling edge: (current_value-previous_value) / previous_value < dSlope
 	else if((current_value-previous_value) / previous_value > dSlope){
@@ -142,15 +135,50 @@ double readRPS(int count, double prev, int maxCount, unsigned int startT){
 			Serial.println();
 		}
 		count++;
-		return readRPS(count, current_value, maxCount, startT);
+		return readRPS(count, current_value, maxCount, previous_time);
 	}
 	else{
-		return -1.0;
+		return readRPS(count, current_value, maxCount, previous_time);
 	}
 }
+//------------------------------------------------------------------------------------
+
+
+//------------------------------------------------------------------------------------
+//-------------------------- Sign change ---------------------------------------------
+double readRPSSign(int count, double previous_value, int maxCount, unsigned int previous_time){
+	double current_value = analogRead(analogPinPhoto);
+	// To count every other point, repeat above line
+	unsigned int current_time = (unsigned int)Time;
+	if(count == maxCount){
+		if(debug){
+			Serial.print(previous_time);
+			Serial.print("\t");
+			Serial.print(current_time);
+			Serial.println();
+		}
+		return maxCount/((current_time-previous_time)*pow(10.0,-6)*16.0);
+	}
+	// Detects sign change from - to +
+	else if(current_value > abs(previous_value)){
+		if(debug){
+			Serial.print(prev);
+			Serial.print("\t");
+			Serial.print(current_value);
+			Serial.println();
+		}
+		if(previous_value < 0){
+			count++;
+		}
+		return readRPS(count, current_value, maxCount, previous_time);
+	}
+	else{
+		return readRPS(count, -current_value, maxCount, previous_time);
+	}
+}
+//------------------------------------------------------------------------------------
 
 void loop(){
-	unsigned int startT = Time;
-	current_value = analogRead(analogPinPhoto);
-	double RPS = readRPS(count, current_value, maxCount, startT);
+	double RPS = readRPSRate(0, analogRead(analogPinPhoto), 4, (unsigned int)Time);
+	// double RPS = readRPSSign(0, analogRead(analogPinPhoto), 4, (unsigned int)Time);
 }
