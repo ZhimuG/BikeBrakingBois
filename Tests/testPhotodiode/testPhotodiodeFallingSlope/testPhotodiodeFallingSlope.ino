@@ -13,10 +13,10 @@
 //elapsedMillis time_btw_max;
 
 int analogPinPhoto = 31;
-double dSlope = 0.1;
+double dSlope = -0.02;
 int numPoints = 4;
 elapsedMicros Time;
-bool debug = false;
+bool debug = true;
 //elapsedMicros current_time;
 //elapsedMicros previous_time;
 //elapsedMicros elapsed_time;
@@ -123,7 +123,7 @@ int readRPSRate(int count, double previous_value, int maxCount){
 		return 1;
 	}
 	// falling edge: (current_value-previous_value) / previous_value < dSlope
-	else if((current_value-previous_value) / previous_value > dSlope){
+	else if((current_value-previous_value) / previous_value < dSlope){
 		if(debug){
 			Serial.print(previous_value);
 			Serial.print("\t");
