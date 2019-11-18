@@ -113,10 +113,9 @@ void setup() {
 
 //------------------------------------------------------------------------------------
 //--------------------------- Rate of change -----------------------------------------
-double readRPSRate(int count, double previous_value, int maxCount, unsigned int previous_time){
+int readRPSRate(int count, double previous_value, int maxCount){
 	double current_value = analogRead(analogPinPhoto);
 	// To count every other point, repeat above line
-	unsigned int current_time = (unsigned int)Time;
 	if(count == maxCount){
 		if(debug){
 			Serial.print(previous_time);
@@ -124,7 +123,7 @@ double readRPSRate(int count, double previous_value, int maxCount, unsigned int 
 			Serial.print(current_time);
 			Serial.println();
 		}
-		return maxCount/((current_time-previous_time)*pow(10.0,-6)*16.0);
+		return 1;
 	}
 	// falling edge: (current_value-previous_value) / previous_value < dSlope
 	else if((current_value-previous_value) / previous_value > dSlope){
@@ -135,10 +134,10 @@ double readRPSRate(int count, double previous_value, int maxCount, unsigned int 
 			Serial.println();
 		}
 		count++;
-		return readRPSRate(count, current_value, maxCount, previous_time);
+		return readRPSRate(count, current_value, maxCount);
 	}
 	else{
-		return readRPSRate(count, current_value, maxCount, previous_time);
+		return readRPSRate(count, current_value, maxCount);
 	}
 }
 //------------------------------------------------------------------------------------
@@ -179,6 +178,13 @@ double readRPSSign(int count, double previous_value, int maxCount, unsigned int 
 //------------------------------------------------------------------------------------
 
 void loop(){
-	double RPS = readRPSRate(0, analogRead(analogPinPhoto), 4, (unsigned int)Time);
+  int count = 0;
+  unsigned int previous_time = (unsigned int)Time;
+	count += readRPSRate(0, analogRead(analogPinPhoto), 4);
+  if(count == 4){
+    unsigned int current_time = (unsigned int)Time;
+    Serial.print(4.0/((current_time-previous_time)*pow(10.0,-6)*16.0));
+    Serial.println();
+  }
 	// double RPS = readRPSSign(0, analogRead(analogPinPhoto), 4, (unsigned int)Time);
 }
