@@ -139,7 +139,7 @@ uint16_t packetSizeF;    // expected DMP packet size (default is 42 bytes)
 uint16_t packetSizeB;
 uint16_t fifoCount;     // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64]; // FIFO storage buffer
-
+elapsedMicros Time;
 // orientation/motion vars
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorInt16 aa;         // [x, y, z]            accel sensor measurements
@@ -166,7 +166,7 @@ void dmpDataReady() {
 
 //-----------------------------------------------------------------
 //--------------- Read Linear Acceleration ------------------------
-void ReadLinAccel(MPU6050 mpu){
+void ReadLinAccel(MPU6050 mpu, uint16_t packetSize){
 	fifoCount = mpu.getFIFOCount();
 	if(fifoCount >= 1024){
 		mpu.resetFIFO();
@@ -192,9 +192,9 @@ void ReadLinAccel(MPU6050 mpu){
 
 //-----------------------------------------------------------------
 //-------------- Read Linear Speed --------------------------------
-void ReadLinSpeed(MPU6050 mpu){
+void ReadLinSpeed(MPU6050 mpu, uint16_t packetSize){
 	unsigned int prev = (unsigned int)Time;
-	ReadLinAccel();
+	ReadLinAccel(mpu, packetSize);
 	unsigned int curr = (unsigned int)Time;
 	linSpeed.x += linAccel.x*1.0*(curr-prev)*pow(10,-6);
     linSpeed.y += linAccel.y*1.0*(curr-prev)*pow(10,-6);
@@ -206,7 +206,7 @@ void ReadLinSpeed(MPU6050 mpu){
 
 //-----------------------------------------------------------------
 //-------------- Read Angles --------------------------------------
-void ReadAngles(MPU6050 mpu){
+void ReadAngles(MPU6050 mpu, uint16_t packetSize){
 	fifoCount = mpu.getFIFOCount();
 	if(fifoCount >= 1024){
 		mpu.resetFIFO();
@@ -309,11 +309,11 @@ void setup(){
         mpuF.PrintActiveOffsets();
 		mpuB.CalibrateAccel(6);
         mpuB.CalibrateGyro(6);
-        mpuB.PrintActiveOffsets();
-        mpuF.setDMPEnabled(true);
+    mpuB.PrintActiveOffsets();
+    mpuF.setDMPEnabled(true);
 		mpuB.setDMPEnabled(true);
-        dmpReady = true;
-        packetSizeF = mpuF.dmpGetFIFOPacketSize();
+    dmpReady = true;
+    packetSizeF = mpuF.dmpGetFIFOPacketSize();
 		packetSizeB = mpuB.dmpGetFIFOPacketSize();
     }else{return;}
 }
@@ -414,5 +414,5 @@ void setup() {
 // ================================================================
 
 void loop() {
-	ReadLinAccel(mpuF);
+	ReadLinAccel(mpuB, packetSizeB);
 }
