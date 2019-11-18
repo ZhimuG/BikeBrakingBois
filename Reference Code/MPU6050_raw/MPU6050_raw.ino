@@ -18,7 +18,7 @@
 #include "MPU6050.h"
 
 MPU6050 imu1;
-MPU6050 imu2;
+//MPU6050 imu2;
 
 void setup()
 {
@@ -35,20 +35,20 @@ void setup()
             ;
     }
 
-    if (!imu2.begin(AFS_2G, GFS_250DPS)) {
-        Serial.println("MPU6050 2 is online...");
-    }
-    else {
-        Serial.println("Failed to init MPU6050 2");
-        while (true) 
-            ;
-    }
+//    if (!imu2.begin(AFS_2G, GFS_250DPS)) {
+//        Serial.println("MPU6050 2 is online...");
+//    }
+//    else {
+//        Serial.println("Failed to init MPU6050 2");
+//        while (true) 
+//            ;
+//    }
 }
 
 void loop()
 {  
     int16_t ax1, ay1, az1, gx1, gy1, gz1;
-    int16_t ax2, ay2, az2, gx2, gy2, gz2;
+//    int16_t ax2, ay2, az2, gx2, gy2, gz2;
 
     if (imu1.getMotion6Counts(&ax1, &ay1, &az1, &gx1, &gy1, &gz1)) {
         Serial.print("Device 1:\n");
@@ -66,19 +66,19 @@ void loop()
         Serial.println();
     }
     
-    if (imu2.getMotion6Counts(&ax2, &ay2, &az2, &gx2, &gy2, &gz2)) {
-        Serial.print("Device 2:\n");
-        Serial.print(ax2);
-        Serial.print(" ");
-        Serial.print(ay2);
-        Serial.print(" ");
-        Serial.print(az2);
-        Serial.print(" ");
-        Serial.print(gx2);
-        Serial.print(" ");
-        Serial.print(gy2);
-        Serial.print(" ");
-        Serial.print(gz2);
-        Serial.println();
-    }
+//    if (imu2.getMotion6Counts(&ax2, &ay2, &az2, &gx2, &gy2, &gz2)) {
+//        Serial.print("Device 2:\n");
+//        Serial.print(ax2);
+//        Serial.print(" ");
+//        Serial.print(ay2);
+//        Serial.print(" ");
+//        Serial.print(az2);
+//        Serial.print(" ");
+//        Serial.print(gx2);
+//        Serial.print(" ");
+//        Serial.print(gy2);
+//        Serial.print(" ");
+//        Serial.print(gz2);
+//        Serial.println();
+//    }
 }
