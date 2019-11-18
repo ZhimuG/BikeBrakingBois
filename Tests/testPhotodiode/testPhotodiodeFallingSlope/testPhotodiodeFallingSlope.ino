@@ -118,17 +118,14 @@ int readRPSRate(int count, double previous_value, int maxCount){
 	// To count every other point, repeat above line
 	if(count == maxCount){
 		if(debug){
-			Serial.print(previous_time);
-			Serial.print("\t");
-			Serial.print(current_time);
-			Serial.println();
+			Serial.print(count);
 		}
 		return 1;
 	}
 	// falling edge: (current_value-previous_value) / previous_value < dSlope
 	else if((current_value-previous_value) / previous_value > dSlope){
 		if(debug){
-			Serial.print(prev);
+			Serial.print(previous_value);
 			Serial.print("\t");
 			Serial.print(current_value);
 			Serial.println();
@@ -161,7 +158,7 @@ double readRPSSign(int count, double previous_value, int maxCount, unsigned int 
 	// Detects sign change from - to +
 	else if(current_value > abs(previous_value)){
 		if(debug){
-			Serial.print(prev);
+			Serial.print(previous_value);
 			Serial.print("\t");
 			Serial.print(current_value);
 			Serial.println();
