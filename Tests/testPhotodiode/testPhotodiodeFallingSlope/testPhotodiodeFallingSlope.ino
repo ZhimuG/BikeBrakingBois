@@ -113,7 +113,7 @@ void setup() {
 
 //------------------------------------------------------------------------------------
 //--------------------------- Rate of change -----------------------------------------
-int readRPSRate(int count, double previous_value, int maxCount){
+int readRPSRateEdge(int count, double previous_value, int maxCount){
 	double current_value = analogRead(analogPinPhoto);
 	// To count every other point, repeat above line
 	if(count == maxCount){
@@ -131,12 +131,21 @@ int readRPSRate(int count, double previous_value, int maxCount){
 			Serial.println();
 		}
 		count++;
-		return readRPSRate(count, current_value, maxCount);
+		return readRPSRateEdge(count, current_value, maxCount);
 	}
 	else{
-		return readRPSRate(count, current_value, maxCount);
+		return readRPSRateEdge(count, current_value, maxCount);
 	}
 }
+
+double readRPSRate(int count, double previous_value, double maxCount, unsigned int previous_time){
+  count += readRPSRateEdge(0, analogRead(analogPinPhoto), 4);
+  if(count == 4){
+    unsigned int current_time = (unsigned int)Time;
+    return maxCount/((current_time-previous_time)*pow(10.0,-6)*16.0);
+  }
+}
+
 //------------------------------------------------------------------------------------
 
 
@@ -175,13 +184,6 @@ double readRPSSign(int count, double previous_value, int maxCount, unsigned int 
 //------------------------------------------------------------------------------------
 
 void loop(){
-  int count = 0;
-  unsigned int previous_time = (unsigned int)Time;
-	count += readRPSRate(0, analogRead(analogPinPhoto), 4);
-  if(count == 4){
-    unsigned int current_time = (unsigned int)Time;
-    Serial.print(4.0/((current_time-previous_time)*pow(10.0,-6)*16.0));
-    Serial.println();
-  }
+  double RPS = readRPSRate(0,analogRead(analogPinPhoto), 4.0, (unsigned int)Time);
 	// double RPS = readRPSSign(0, analogRead(analogPinPhoto), 4, (unsigned int)Time);
 }
