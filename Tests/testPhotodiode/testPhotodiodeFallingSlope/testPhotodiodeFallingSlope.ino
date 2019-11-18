@@ -13,7 +13,7 @@
 //elapsedMillis time_btw_max;
 
 int analogPinPhoto = 31;
-double dSlope = -0.02;
+double dSlope = -10.0;
 int numPoints = 4;
 elapsedMicros Time;
 bool debug = true;
@@ -113,36 +113,32 @@ void setup() {
 
 //------------------------------------------------------------------------------------
 //--------------------------- Rate of change -----------------------------------------
-int readRPSRateEdge(int count, double previous_value, int maxCount){
+int readRPSRateEdge(double previous_value){
 	double current_value = analogRead(analogPinPhoto);
 	// To count every other point, repeat above line
-	if(count == maxCount){
+  if((current_value-previous_value) < dSlope && current_value > 30 && previous_value > 30){
 		if(debug){
-			Serial.print(count);
+//			Serial.print(previous_value);
+//			Serial.print("\t");
+//			Serial.print(current_value);
+//			Serial.println();
+        Serial.println((current_value-previous_value));
 		}
 		return 1;
 	}
-	// falling edge: (current_value-previous_value) / previous_value < dSlope
-	else if((current_value-previous_value) / previous_value < dSlope){
-		if(debug){
-			Serial.print(previous_value);
-			Serial.print("\t");
-			Serial.print(current_value);
-			Serial.println();
-		}
-		count++;
-		return readRPSRateEdge(count, current_value, maxCount);
-	}
 	else{
-		return readRPSRateEdge(count, current_value, maxCount);
+		return readRPSRateEdge(current_value);
 	}
 }
 
-double readRPSRate(int count, double previous_value, double maxCount, unsigned int previous_time){
-  count += readRPSRateEdge(0, analogRead(analogPinPhoto), 4);
-  if(count == 4){
+double readRPSRate(int count, double maxCount, unsigned int previous_time){
+  while(count < maxCount){
+    count += readRPSRateEdge(analogRead(analogPinPhoto));
+    delay(1);
+  }
+  if(count == (int)maxCount){
     unsigned int current_time = (unsigned int)Time;
-    return maxCount/((current_time-previous_time)*pow(10.0,-6)*16.0);
+    return maxCount/((double)(current_time-previous_time)*pow(10.0,-6)*16.0);
   }
 }
 
@@ -184,6 +180,9 @@ double readRPSSign(int count, double previous_value, int maxCount, unsigned int 
 //------------------------------------------------------------------------------------
 
 void loop(){
-  double RPS = readRPSRate(0,analogRead(analogPinPhoto), 4.0, (unsigned int)Time);
-	// double RPS = readRPSSign(0, analogRead(analogPinPhoto), 4, (unsigned int)Time);
+  double RPS = readRPSRate(0, 4.0, (unsigned int)Time);
+	// double RPS = readRPSSign(0, analogRead(analogPinPhoto), 2, (unsigned int)Time);
+  if(debug){
+    Serial.println(RPS);
+  }
 }
