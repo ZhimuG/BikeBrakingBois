@@ -1,6 +1,9 @@
 // I2C device class (I2Cdev) demonstration Arduino sketch for MPU6050 class using DMP (MotionApps v2.0)
 // 6/21/2012 by Jeff Rowberg <jeff@rowberg.net>
 // Updates should (hopefully) always be available at https://github.com/jrowberg/i2cdevlib
+#include <PWMServo.h>
+PWMServo myservoF;  // create servo object to control a servo
+PWMServo myservoB;  // create servo object to control a servo
 //
 // Changelog:
 //      2019-07-08 - Added Auto Calibration and offset generator
@@ -285,6 +288,10 @@ void ReadAngles(MPU6050 mpu, uint16_t packetSize){
 //-----------------------------------------------------------------
 //------------------- Set Up Function -----------------------------
 void setup(){
+  myservoF.attach(2);         // attaches the servo on pin 9 to the servo
+ myservoB.attach(3);
+ myservoB.write(10);
+ myservoF.write(170);
 	Wire.begin();
 	Serial.begin(9600);
 	mpuF.initialize();
@@ -303,6 +310,7 @@ void setup(){
     mpuB.setZAccelOffset(1688);
     devStatusF = mpuF.dmpInitialize();
     devStatusB = mpuB.dmpInitialize();
+    //myservoF.attach(2)
 	if (devStatusF == 0 && devStatusB == 0) {
         mpuF.CalibrateAccel(6);
         mpuF.CalibrateGyro(6);
@@ -414,5 +422,11 @@ void setup() {
 // ================================================================
 
 void loop() {
-	ReadLinAccel(mpuB, packetSizeB);
+	ReadLinAccel(mpuF, packetSizeF);
+   Serial.print("acceleration\t");
+        Serial.print(linAccel.x);
+        Serial.print("\t");
+        Serial.print(linAccel.y);
+        Serial.print("\t");
+        Serial.println(linAccel.z);
 }
