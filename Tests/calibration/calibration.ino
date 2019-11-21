@@ -193,6 +193,20 @@ int ReadPot(const int potpin){
   return val;
 }
 
+void print_cal(double* RPS_arr, float dt, int N, int PWM){
+  Serial.print(PWM);
+  Serial.print(", ");
+  Serial.print(dt);
+  Serial.print(", ");
+  Serial.print(N);
+  Serial.print(", ");
+  for(int i=0; i<N; i++){
+    Serial.print(RPS_arr[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+
 void writeSD_cal(double* RPS_arr, float dt, int N, int PWM){
   file_t file;
   BufferedPrint<file_t, 64> bp;
@@ -328,18 +342,18 @@ void loop() {
   // Step 2: Choose PWM 
   //PWM[0] = 100;
   PWM[0] = 170;
-  PWM[1] = 10 + stepSize*loopCount;
+  PWM[1] = 10+stepSize*loopCount;
   // Step 3: Spin wheel and start the program 
   // monitor the pot in a while loop to trigger program
   int pot = ReadPot(potpin);
-  int thresh = 20;
+  int thresh = 100;
   while(pot>thresh){
         pot = ReadPot(potpin);
-        Serial.println(pot);
+//        Serial.println(pot);
         delay(10);
       }
   // Step 4: Apply brake at PWM for N measurements
-  int N = 1000;
+  int N = 10;
   float dt = 10; //[ms]
   double RPS_arr[N];
   double* RPS = (double*)malloc(sizeof(double)*2);
@@ -358,7 +372,7 @@ void loop() {
   // Step 6: Write RPS_arr, dt, N
 
   // can just write this to the serial monitor
-  writeSD_cal(RPS_arr, dt, N, PWM[1]);
+  print_cal(RPS_arr, dt, N, PWM[1]);
   free(PWM);
   free(RPS);
 }
