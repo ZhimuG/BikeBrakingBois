@@ -27,7 +27,8 @@ void loop() {
 
   while(i<numHoles){
     current_value = analogRead(analogPinPhoto1);
-//    Serial.println(current_value);
+//    current_value = analogRead(analogPinPhoto2);
+    Serial.println(current_value);
     if(previous_value > threshold_fall && current_value < threshold_fall){
       current_time = (unsigned int)Time;
       elapsed_time = current_time - previous_time;
@@ -50,7 +51,7 @@ void loop() {
   }
   current_rps /= numHoles;
 //  if(current_rps<100){
-    Serial.println(current_rps);
+//    Serial.println(current_rps);
 //  }
   
 //  RPS[0] = current_rps;

@@ -61,7 +61,7 @@ end
 toc
 figure(1)
 mesh(THETA, P_I, F_B1_OUT);
-fs = 16;
+fs = 28;
 xlabel("\theta (radians)","fontsize",fs)
 ylabel("p_i","fontsize",fs)
 zlabel("F_{b_1} (N)","fontsize",fs)

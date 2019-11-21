@@ -8,19 +8,19 @@ PWMServo myservoB;  // create servo object to control a servo
 
 // Structs:
 
-typedef struct{
-    int angle[3];
-    double accel[3];
-    double spd[3];
-}accelGyro;
-
-typedef struct{
-    int pot;
-    accelGyro meters[2];
-    int PWM[2];
-    double RPS[2];
-    unsigned int t;
-}outputData;
+//typedef struct{
+//    int angle[3];
+//    double accel[3];
+//    double spd[3];
+//}accelGyro;
+//
+//typedef struct{
+//    int pot;
+//    accelGyro meters[2];
+//    int PWM[2];
+//    double RPS[2];
+//    unsigned int t;
+//}outputData;
 
 // Constants:
 
@@ -283,16 +283,76 @@ double ReadLinSpeed(){
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
-void writeSD(outputData* data){
+//void writeSD(outputData* data){
+//  file_t file;
+//  BufferedPrint<file_t, 64> bp;
+//
+//  //--------------------------------------------
+//  // Change the file name if necessary
+//  char fileName[13] = "Test0.txt";
+//  //--------------------------------------------
+//  
+//  if (!file.open(fileName, O_RDWR | O_CREAT | O_TRUNC)) {
+//      sd.errorHalt(&Serial, F("open failed"));
+//    }
+//  if (1) {
+//    bp.begin(&file);
+//  }
+//
+//  //-----------------------------------------------
+//  // Change this section if input data type changes
+//  //file.println(i);
+//
+//  for(int j=0; j<3000; j++){
+//        file.print(data[j].t);
+//        file.print(data[j].pot);
+//        for(int i = 0; i<3; i++){
+//            file.print(data[j].meters[0].angle[i]);
+//        }
+//  for(int i = 0; i<3; i++){
+//            file.print(data[j].meters[0].accel[i]);
+//        }
+//        for(int i = 0; i<3; i++){
+//            file.print(data[j].meters[0].spd[i]);
+//        }
+//        for(int i = 0; i<3; i++){
+//            file.print(data[j].meters[1].angle[i]);
+//        }
+//  for(int i = 0; i<3; i++){
+//            file.print(data[j].meters[1].accel[i]);
+//        }
+//        for(int i = 0; i<3; i++){
+//            file.print(data[j].meters[1].spd[i]);
+//        }
+//        file.print(data[j].PWM[0]);
+//        file.print(data[j].PWM[1]);
+//        file.print(data[j].RPS[0]);
+//        file.print(data[j].RPS[1]);
+//}
+//  //-----------------------------------------------
+//  
+//  if (1) {
+//    bp.sync();
+//  }
+//  if (file.getWriteError()) {
+//    sd.errorHalt(&Serial, F("write failed"));
+//  }
+//  double s = file.fileSize();
+//  file.close();
+//}
+
+void writeSD(double* data){
   file_t file;
   BufferedPrint<file_t, 64> bp;
 
   //--------------------------------------------
   // Change the file name if necessary
-  char fileName[13] = "Test0.txt";
+  char fileName[13] = "TestPot.txt";
+  //char fileName[10] = "TestPot.txt"; //filename;
+  
   //--------------------------------------------
   
-  if (!file.open(fileName, O_RDWR | O_CREAT | O_TRUNC)) {
+  if (!file.open(fileName, O_RDWR | O_APPEND)) {
       sd.errorHalt(&Serial, F("open failed"));
     }
   if (1) {
@@ -301,34 +361,13 @@ void writeSD(outputData* data){
 
   //-----------------------------------------------
   // Change this section if input data type changes
-  //file.println(i);
-
-  for(int j=0; j<3000; j++){
-        file.print(data[j].t);
-        file.print(data[j].pot);
-        for(int i = 0; i<3; i++){
-            file.print(data[j].meters[0].angle[i]);
-        }
-  for(int i = 0; i<3; i++){
-            file.print(data[j].meters[0].accel[i]);
-        }
-        for(int i = 0; i<3; i++){
-            file.print(data[j].meters[0].spd[i]);
-        }
-        for(int i = 0; i<3; i++){
-            file.print(data[j].meters[1].angle[i]);
-        }
-  for(int i = 0; i<3; i++){
-            file.print(data[j].meters[1].accel[i]);
-        }
-        for(int i = 0; i<3; i++){
-            file.print(data[j].meters[1].spd[i]);
-        }
-        file.print(data[j].PWM[0]);
-        file.print(data[j].PWM[1]);
-        file.print(data[j].RPS[0]);
-        file.print(data[j].RPS[1]);
-}
+  int data_arr_len = 6;
+  for(int i=0; i<data_arr_len; i++){
+    file.print(data[i]);
+    file.print(" ");
+  }
+  file.println();
+  
   //-----------------------------------------------
   
   if (1) {
@@ -387,9 +426,9 @@ void loop() {
   // Need to write a function to activate the buzzer at a certain velocity
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  // This is super weird we need to fix this (there will be a memory leak cuz there is no good time to free the data)
-  // Should probably just write to the file each time
-  outputData* data = (outputData*)malloc(sizeof(outputData)*3000);
-  free(data)
+//  // This is super weird we need to fix this (there will be a memory leak cuz there is no good time to free the data)
+//  // Should probably just write to the file each time
+//  outputData* data = (outputData*)malloc(sizeof(outputData)*3000);
+//  free(data)
 
 }

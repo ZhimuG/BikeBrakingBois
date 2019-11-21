@@ -55,6 +55,14 @@ const int potpin = A3;  // analog pin used to connect the potentiometer
 int val;    // variable to read the value from the analog pin
 char filename[12] = "TestPot.txt";
 
+// For RPS
+int magic_thresh = 212;
+int window_thresh = 218;
+int analogPinPhoto1 = 31;
+int analogPinPhoto2 = 32;
+elapsedMicros Time;
+unsigned int max_time = 1; //[s]
+
 int loopCount = 0;
 
 void setup() {
@@ -62,6 +70,8 @@ void setup() {
   myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
   myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
   //  Serial.begin(9600);
+  myservoB.write(10);
+  myservoF.write(170);
   if (!sd.begin(SD_CONFIG)) {
     sd.initErrorHalt(&Serial);
   }
@@ -105,71 +115,71 @@ void writeSD(double* data){
   double s = file.fileSize();
   file.close();
 }
-
-void ReadRPS(double* RPS){
-  int analogPinPhoto1 = 31;
-  int analogPinPhoto2 = 32;
-  double current_value = 0;
-  //int numDecreasingPoints = 4;
-  //int count = 0;
-  double previous_value = 1;
-  elapsedMicros Time;
-  unsigned int previous_time;
-  unsigned int elapsed_time;
-  unsigned int current_time;
-  
-  double current_rps = 0;
-  double angle_btw_holes = 3.14159/8.0;
-  int i = 0;
-  double threshold_fall = 100.0;
-  int numHoles = 6;
-  int noHoleCounter = 0;
-  int thresh = 10000;
-
-  while(i<numHoles){
-    current_value = analogRead(analogPinPhoto1);
-//    Serial.println(current_value);
-    if(previous_value > threshold_fall && current_value < threshold_fall){
-      current_time = (unsigned int)Time;
-      elapsed_time = current_time - previous_time;
-      current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
-      previous_time = current_time;
-      i++;
-    }
-    previous_value = current_value;
-    delayMicroseconds(300);
-//    delayMicroseconds(3);
-    if(noHoleCounter>thresh){
-      RPS[0] = 0;
-      break;
-    }
-    noHoleCounter++;
-  }
-  current_rps /= numHoles;
-  RPS[0] = current_rps;
-
-//  current_value = 0;
-//  previous_value = 1;
 //
-//  i=0;
+//void ReadRPS(double* RPS){
+//  int analogPinPhoto1 = 31;
+//  int analogPinPhoto2 = 32;
+//  double current_value = 0;
+//  //int numDecreasingPoints = 4;
+//  //int count = 0;
+//  double previous_value = 1;
+//  elapsedMicros Time;
+//  unsigned int previous_time;
+//  unsigned int elapsed_time;
+//  unsigned int current_time;
+//  
+//  double current_rps = 0;
+//  double angle_btw_holes = 3.14159/8.0;
+//  int i = 0;
+//  double threshold_fall = 100.0;
+//  int numHoles = 6;
+//  int noHoleCounter = 0;
+//  int thresh = 10000;
+//
 //  while(i<numHoles){
-//  current_value = analogRead(analogPinPhoto2);
-//  if(previous_value > threshold_fall && current_value < threshold_fall){
-//    current_time = (unsigned int)Time;
-//    elapsed_time = current_time - previous_time;
-//    current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
-//    previous_time = current_time;
-//    i++;
+//    current_value = analogRead(analogPinPhoto1);
+////    Serial.println(current_value);
+//    if(previous_value > threshold_fall && current_value < threshold_fall){
+//      current_time = (unsigned int)Time;
+//      elapsed_time = current_time - previous_time;
+//      current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
+//      previous_time = current_time;
+//      i++;
+//    }
+//    previous_value = current_value;
+//    delayMicroseconds(300);
+////    delayMicroseconds(3);
+//    if(noHoleCounter>thresh){
+//      RPS[0] = 0;
+//      break;
+//    }
+//    noHoleCounter++;
 //  }
-//  previous_value = current_value;
-//  delayMicroseconds(300);
-//  } 
 //  current_rps /= numHoles;
-  RPS[1] = current_rps;
-
-//  RPS[1] = -20;
-//  RPS[0] = -21;
-}
+//  RPS[0] = current_rps;
+//
+////  current_value = 0;
+////  previous_value = 1;
+////
+////  i=0;
+////  while(i<numHoles){
+////  current_value = analogRead(analogPinPhoto2);
+////  if(previous_value > threshold_fall && current_value < threshold_fall){
+////    current_time = (unsigned int)Time;
+////    elapsed_time = current_time - previous_time;
+////    current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
+////    previous_time = current_time;
+////    i++;
+////  }
+////  previous_value = current_value;
+////  delayMicroseconds(300);
+////  } 
+////  current_rps /= numHoles;
+//  RPS[1] = current_rps;
+//
+////  RPS[1] = -20;
+////  RPS[0] = -21;
+//}
 
 void MoveMotors(int* PWM){
   //Serial.println("success");
@@ -228,6 +238,56 @@ void writeSD_cal(double* RPS_arr, float dt, int N, int PWM){
   file.close();
 }
 
+bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time){
+  int current_value = analogRead(analogPinPhoto1);
+  delayMicroseconds(100);
+//  Serial.println(((unsigned int)Time - previous_time)*pow(10,-6));
+//Serial.println((unsigned int)Time);
+//Serial.println(previous_time);
+//  Serial.println(hole_count);
+//  Serial.println(current_value);
+  if(hole_count >= max_count){
+//    Serial.println("hello");
+    return true;
+  }
+  else if(current_value > magic_thresh && previous_value <= magic_thresh){
+//    Serial.println(current_value);
+    int window_value = analogRead(analogPinPhoto1);
+    while(window_value < window_thresh){
+      window_value = analogRead(analogPinPhoto1);
+    }
+      
+    hole_count++;
+//    Serial.println(hole_count);
+    return get_rps_flag(hole_count, max_count, current_value, previous_time);
+  }
+  else if(((unsigned int)Time - previous_time)*pow(10,-6) > max_time){
+//    Serial.println("yoyo");
+    return false;
+  } 
+  else{
+    return get_rps_flag(hole_count, max_count, current_value, previous_time);
+  }
+  // add window threshold
+  // add delay?  
+}
+
+double get_rps(int num_holes){
+  bool rps_flag = false;
+  unsigned int previous_time = (unsigned int)Time;
+  int hole_count = 0;
+  rps_flag = get_rps_flag(hole_count, num_holes, analogRead(analogPinPhoto1), previous_time);
+//  Serial.println(rps_flag);
+  if(rps_flag){
+    unsigned int current_time = (unsigned int)Time;
+    return (double)num_holes/((current_time-previous_time)*pow(10,-6)*16.0);
+  }
+  else{
+//    Serial.println("hello???");
+    return 0.0;
+  }
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
   
@@ -262,40 +322,43 @@ void loop() {
   loopCount++;
   int stepSize = 10;
   int* PWM = (int*)malloc(sizeof(int)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
-  PWM[0] = 0;
-  PWM[1] = 0;
+  PWM[0] = 170;
+  PWM[1] = 10;
   MoveMotors(PWM);
   // Step 2: Choose PWM 
   //PWM[0] = 100;
-  PWM[0] = stepSize*loopCount;
-  PWM[1] = 0;
+  PWM[0] = 170;
+  PWM[1] = 10 + stepSize*loopCount;
   // Step 3: Spin wheel and start the program 
   // monitor the pot in a while loop to trigger program
   int pot = ReadPot(potpin);
   int thresh = 20;
   while(pot>thresh){
         pot = ReadPot(potpin);
+        Serial.println(pot);
         delay(10);
       }
-  // Step 4: read the initial RPS (RPS_arr[0]) 
+  // Step 4: Apply brake at PWM for N measurements
   int N = 1000;
   float dt = 10; //[ms]
   double RPS_arr[N];
   double* RPS = (double*)malloc(sizeof(double)*2);
-  // Step 5: Apply brake at PWM for N measurements
   MoveMotors(PWM);
   for(int i=0;i<N;i++){
-    // Step 6: read the RPS every dt RPS_arr[i]
-    ReadRPS(RPS);
-    RPS_arr[i] = RPS[0];
-    Serial.println(RPS[0]);
+    // Step 5: read the RPS every dt RPS_arr[i]
+//    ReadRPS(RPS);
+//    RPS_arr[i] = RPS[0];
+//    Serial.println(RPS[0]);
+    RPS_arr[i] = get_rps(2);
     delay(dt);
 //    if(RPS[0] == 0){
 //      break;
 //    }
   }
-  // Step 7: Write RPS_arr, dt, N
-  writeSD_cal(RPS_arr, dt, N, PWM[0]);
+  // Step 6: Write RPS_arr, dt, N
+
+  // can just write this to the serial monitor
+  writeSD_cal(RPS_arr, dt, N, PWM[1]);
   free(PWM);
   free(RPS);
 }
