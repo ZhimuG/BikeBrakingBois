@@ -61,7 +61,7 @@ int window_thresh = 218;
 int analogPinPhoto1 = 31;
 int analogPinPhoto2 = 32;
 elapsedMicros Time;
-unsigned int max_time = 1; //[s]
+unsigned int max_time = 300; //[ms]
 
 int loopCount = 0;
 
@@ -194,15 +194,15 @@ int ReadPot(const int potpin){
 }
 
 void print_cal(double* RPS_arr, float dt, int N, int PWM){
-  Serial.print(PWM);
-  Serial.print(", ");
-  Serial.print(dt);
-  Serial.print(", ");
-  Serial.print(N);
-  Serial.print(", ");
+  Serial.print(PSTR(PWM));
+  Serial.print(PSTR(", "));
+  Serial.print(PSTR(dt));
+  Serial.print(PSTR(", "));
+  Serial.print(PSTR(N));
+  Serial.print(PSTR(", "));
   for(int i=0; i<N; i++){
-    Serial.print(RPS_arr[i]);
-    Serial.print(" ");
+    Serial.print(PSTR(RPS_arr[i]));
+    Serial.print(PSTR(" "));
   }
   Serial.println();
 }
@@ -252,8 +252,8 @@ void writeSD_cal(double* RPS_arr, float dt, int N, int PWM){
   file.close();
 }
 
-bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time){
-  int current_value = analogRead(analogPinPhoto1);
+bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time, int analogPinPhoto){
+  int current_value = analogRead(analogPinPhoto);
   delayMicroseconds(100);
 //  Serial.println(((unsigned int)Time - previous_time)*pow(10,-6));
 //Serial.println((unsigned int)Time);
@@ -266,31 +266,31 @@ bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned in
   }
   else if(current_value > magic_thresh && previous_value <= magic_thresh){
 //    Serial.println(current_value);
-    int window_value = analogRead(analogPinPhoto1);
+    int window_value = analogRead(analogPinPhoto);
     while(window_value < window_thresh){
-      window_value = analogRead(analogPinPhoto1);
+      window_value = analogRead(analogPinPhoto);
     }
       
     hole_count++;
 //    Serial.println(hole_count);
-    return get_rps_flag(hole_count, max_count, current_value, previous_time);
+    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
   }
-  else if(((unsigned int)Time - previous_time)*pow(10,-6) > max_time){
+  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
 //    Serial.println("yoyo");
     return false;
   } 
   else{
-    return get_rps_flag(hole_count, max_count, current_value, previous_time);
+    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
   }
   // add window threshold
   // add delay?  
 }
 
-double get_rps(int num_holes){
+double get_rps(int num_holes, int analogPinPhoto){
   bool rps_flag = false;
   unsigned int previous_time = (unsigned int)Time;
   int hole_count = 0;
-  rps_flag = get_rps_flag(hole_count, num_holes, analogRead(analogPinPhoto1), previous_time);
+  rps_flag = get_rps_flag(hole_count, num_holes, analogRead(analogPinPhoto), previous_time, analogPinPhoto);
 //  Serial.println(rps_flag);
   if(rps_flag){
     unsigned int current_time = (unsigned int)Time;
@@ -342,7 +342,7 @@ void loop() {
   // Step 2: Choose PWM 
   //PWM[0] = 100;
   PWM[0] = 170;
-  PWM[1] = stepSize*loopCount;
+  PWM[1] = stepSize*loopCount + 30;
   // Step 3: Spin wheel and start the program 
   // monitor the pot in a while loop to trigger program
   int pot = ReadPot(potpin);
@@ -353,8 +353,9 @@ void loop() {
         delay(1);
       }
   // Step 4: Apply brake at PWM for N measurements
-  int N = 10;
-  float dt = 1; //[ms]
+//  unsigned int prev = (unsigned int)Time;
+  int N = 100;
+  float dt = 30; //[ms]
   double RPS_arr[N];
   double* RPS = (double*)malloc(sizeof(double)*2);
   MoveMotors(PWM);
@@ -363,16 +364,20 @@ void loop() {
 //    ReadRPS(RPS);
 //    RPS_arr[i] = RPS[0];
 //    Serial.println(RPS[0]);
-    RPS_arr[i] = get_rps(2);
+//    unsigned int prev = (unsigned int)Time;
+    RPS_arr[i] = get_rps(2, analogPinPhoto1);
     delay(dt);
+//    unsigned int curr = (unsigned int)Time;
 //    if(RPS[0] == 0){
 //      break;
 //    }
+//    Serial.println(((double)curr-(double)prev)*pow(10,-6));
   }
   // Step 6: Write RPS_arr, dt, N
-
+//  unsigned int curr = (unsigned int)Time;
   // can just write this to the serial monitor
   print_cal(RPS_arr, dt, N, PWM[1]);
+//  Serial.println(((double)curr-(double)prev)*pow(10,-6));
   free(PWM);
   free(RPS);
 }
