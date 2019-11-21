@@ -342,7 +342,7 @@ void loop() {
   // Step 2: Choose PWM 
   //PWM[0] = 100;
   PWM[0] = 170;
-  PWM[1] = 10+stepSize*loopCount;
+  PWM[1] = stepSize*loopCount;
   // Step 3: Spin wheel and start the program 
   // monitor the pot in a while loop to trigger program
   int pot = ReadPot(potpin);
@@ -350,11 +350,11 @@ void loop() {
   while(pot>thresh){
         pot = ReadPot(potpin);
 //        Serial.println(pot);
-        delay(10);
+        delay(1);
       }
   // Step 4: Apply brake at PWM for N measurements
   int N = 10;
-  float dt = 10; //[ms]
+  float dt = 1; //[ms]
   double RPS_arr[N];
   double* RPS = (double*)malloc(sizeof(double)*2);
   MoveMotors(PWM);
