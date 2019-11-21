@@ -7,12 +7,28 @@ void setup() {
  myservoB.write(10);
  myservoF.write(170);
   // put your setup code here, to run once:
-  pinMode(14, OUTPUT);
-    digitalWrite(14, HIGH);
+  buzz_setup(14);
+}
+
+void buzz_setup(int pwmpin){
+  pinMode(pwmpin, OUTPUT);  
+  digitalWrite(pwmpin, LOW);
+}
+
+void make_buzz(int pwmpin, int frequency){
+  double dTime = 1000 / (frequency*2);
+  digitalWrite(pwmpin, HIGH);
+  delay(dTime);
+  digitalWrite(pwmpin, LOW);
+  delay(dTime);
+}
+
+void buzz_stop(int pwmpin){
+  digitalWrite(pwmpin, LOW);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-//  digitalWrite(14, HIGH);
-  Serial.println("Hello");
+//  make_buzz(14, 500);
+  buzz_stop(14);
 }
