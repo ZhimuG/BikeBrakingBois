@@ -129,16 +129,22 @@ void writeSD_move_motors(int pot, int* PWM){
   file.close();
 }
 
-void setup() {
-  myservoF.attach(2);         // attaches the servo on pin 9 to the servo
-  myservoB.attach(3);
-  myservoB.write(10);
-  myservoF.write(170);
-  if (!sd.begin(SD_CONFIG)) {
-    sd.initErrorHalt(&Serial);
-  }
-  writeSD_setup();
-} 
+void buzz_setup(int pwmpin){
+  pinMode(pwmpin, OUTPUT);  
+  digitalWrite(pwmpin, LOW);
+}
+
+void make_buzz(int pwmpin, int frequency){
+  double dTime = 1000 / (frequency*2);
+  digitalWrite(pwmpin, HIGH);
+  delay(dTime);
+  digitalWrite(pwmpin, LOW);
+  delay(dTime);
+}
+
+void buzz_stop(int pwmpin){
+  digitalWrite(pwmpin, LOW);
+}
 
 void MoveMotors(int* PWM){
   //Serial.println("success");
@@ -168,6 +174,18 @@ int ReadPot(const int potpin){
   val = map(val, 0, 20, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
   return val;
 }
+
+void setup() {
+  myservoF.attach(2);         // attaches the servo on pin 9 to the servo
+  myservoB.attach(3);
+  myservoB.write(10);
+  myservoF.write(170);
+  if (!sd.begin(SD_CONFIG)) {
+    sd.initErrorHalt(&Serial);
+  }
+  writeSD_setup();
+  buzz_setup(14);
+} 
 
 void loop() {
 
