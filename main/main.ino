@@ -8,6 +8,7 @@
 #include "MPU6050_6Axis_MotionApps20.h"
 //=============================================================================================================
 
+
 //=============================================================================================================
 //========================================= Global Variables ==================================================
 PWMServo myservoF;  // create servo object to control a servo
@@ -92,8 +93,8 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 
 //=============================================================================================================
 
-////////////////////////////////////////////////////////////////////////////////////////
-// Read input potentiometer value
+//======================================= Modular Functions ===================================================
+//------------------------------- Read input potentiometer value ----------------------------------------------
 int ReadPot(const int potpin){
   val=0;
   for(int i=0; i<5; i++){
@@ -113,17 +114,56 @@ int ReadPot(const int potpin){
   return val;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////////////// Need to write this
-// Read the input angle of incline (in radians)
-float ReadAngle(){
-  float theta = 0.1; //[rad]
-  return theta;
+//---------------------------- Read Linear Acceleration ------------------------------------------------------
+void ReadLinAccel(MPU6050 mpu, uint16_t packetSize){
+  fifoCount = mpu.getFIFOCount();
+  if(fifoCount >= 1024){
+    mpu.resetFIFO();
+  }
+  else if (_BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
+    while(fifoCount >= packetSize){
+      mpu.getFIFOBytes(fifoBuffer, packetSize);
+      fifoCount -= packetSize;
+    }
+    mpu.dmpGetQuaternion(&q, fifoBuffer);
+        mpu.dmpGetAccel(&aa, fifoBuffer);
+        mpu.dmpGetGravity(&gravity, &q);
+        mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+        mpu.dmpGetLinearAccelInWorld(&linAccel, &aaReal, &q);
+        linAccel.x = linAccel.x/2048.0*9.80665;
+        linAccel.y = linAccel.y/2048.0*9.80665;
+        linAccel.z = linAccel.z/2048.0*9.80665;
+  }
 }
-//////////////////////////////////////////////////////////////////////////////////////// 
 
-// Helper Functions for NoSlipNOFlipAlgo()
+//---------------------------- Read the angle of incline (in radians) -----------------------------------
+void ReadAngles(MPU6050 mpu, uint16_t packetSize){
+  fifoCount = mpu.getFIFOCount();
+  if(fifoCount >= 1024){
+    mpu.resetFIFO();
+  }
+  else if (_BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
+    while(fifoCount >= packetSize){
+      mpu.getFIFOBytes(fifoBuffer, packetSize);
+      fifoCount -= packetSize;
+    }
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+        mpu.dmpGetGravity(&gravity, &q);
+        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+  }
+}
+
+//--------------------------------- Read Linear Speed ----------------------------------------------------
+void ReadLinSpeed(MPU6050 mpu, uint16_t packetSize){
+  unsigned int prev = (unsigned int)Time;
+  ReadLinAccel(mpu, packetSize);
+  unsigned int curr = (unsigned int)Time;
+  linSpeed.x += linAccel.x*1.0*(curr-prev)*pow(10,-6);
+    linSpeed.y += linAccel.y*1.0*(curr-prev)*pow(10,-6);
+    linSpeed.z += linAccel.z*1.0*(curr-prev)*pow(10,-6);
+}
+
+//------------------------- Helper Functions for NoSlipNOFlipAlgo() --------------------------------------
 float DesiredGroundFriction(float F_F_max, int p_i_max, int p_i){
   float F_F_desired = min(F_F_max, F_F_max*p_i/p_i_max);
   return F_F_desired;
@@ -293,14 +333,6 @@ void MoveMotors(int* PWM){
 //  current_rps /= numHoles;
 //  RPS[1] = current_rps;
 //}
-////////////////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////////////// Need to write this
-double ReadLinSpeed(){
-  double linSpeed = 20; //[m/s]
-  return linSpeed;
-}
-////////////////////////////////////////////////////////////////////////////////////////
 
 //void writeSD(outputData* data){
 //  file_t file;
