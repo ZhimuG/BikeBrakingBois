@@ -13,6 +13,8 @@
 //========================================= Global Variables ==================================================
 PWMServo myservoF;  // create servo object to control a servo
 PWMServo myservoB;  // create servo object to control a servo
+MPU6050 mpuF;
+MPU6050 mpuB;
 
 //----------------------------------------------- Constants ---------------------------------------------------
 //------------------------------------------ For RunNoSlipNoFlipAlgo ------------------------------------------
@@ -91,12 +93,20 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 VectorFloat linSpeed = VectorFloat();
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
+//------------------------------------ For RPS ----------------------------------------------------------------
+int magic_thresh = 212;
+int window_thresh = 218;
+int analogPinPhotoB = 31;
+int analogPinPhotoF = 32;
+elapsedMicros Time;
+unsigned int max_time = 300; //[ms]
+
 //=============================================================================================================
 
 //======================================= Modular Functions ===================================================
 //------------------------------- Read input potentiometer value ----------------------------------------------
 int ReadPot(const int potpin){
-  val=0;
+  int val=0;
   for(int i=0; i<5; i++){
     val += analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
     delay(5);
@@ -126,18 +136,18 @@ void ReadLinAccel(MPU6050 mpu, uint16_t packetSize){
       fifoCount -= packetSize;
     }
     mpu.dmpGetQuaternion(&q, fifoBuffer);
-        mpu.dmpGetAccel(&aa, fifoBuffer);
-        mpu.dmpGetGravity(&gravity, &q);
-        mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-        mpu.dmpGetLinearAccelInWorld(&linAccel, &aaReal, &q);
-        linAccel.x = linAccel.x/2048.0*9.80665;
-        linAccel.y = linAccel.y/2048.0*9.80665;
-        linAccel.z = linAccel.z/2048.0*9.80665;
+    mpu.dmpGetAccel(&aa, fifoBuffer);
+    mpu.dmpGetGravity(&gravity, &q);
+    mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+    mpu.dmpGetLinearAccelInWorld(&linAccel, &aaReal, &q);
+    linAccel.x = linAccel.x/2048.0*9.80665;
+    linAccel.y = linAccel.y/2048.0*9.80665;
+    linAccel.z = linAccel.z/2048.0*9.80665;
   }
 }
 
 //---------------------------- Read the angle of incline (in radians) -----------------------------------
-void ReadAngles(MPU6050 mpu, uint16_t packetSize){
+void ReadAngle(MPU6050 mpu, uint16_t packetSize){
   fifoCount = mpu.getFIFOCount();
   if(fifoCount >= 1024){
     mpu.resetFIFO();
@@ -148,8 +158,8 @@ void ReadAngles(MPU6050 mpu, uint16_t packetSize){
       fifoCount -= packetSize;
     }
       mpu.dmpGetQuaternion(&q, fifoBuffer);
-        mpu.dmpGetGravity(&gravity, &q);
-        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
   }
 }
 
@@ -161,6 +171,19 @@ void ReadLinSpeed(MPU6050 mpu, uint16_t packetSize){
   linSpeed.x += linAccel.x*1.0*(curr-prev)*pow(10,-6);
     linSpeed.y += linAccel.y*1.0*(curr-prev)*pow(10,-6);
     linSpeed.z += linAccel.z*1.0*(curr-prev)*pow(10,-6);
+}
+
+//------------------------- Buzzer Functions -------------------------------------------------------------
+void make_buzz(int pwmpin, int frequency){
+  double dTime = 1000 / (frequency*2);
+  digitalWrite(pwmpin, HIGH);
+  delay(dTime);
+  digitalWrite(pwmpin, LOW);
+  delay(dTime);
+}
+
+void buzz_stop(int pwmpin){
+  digitalWrite(pwmpin, LOW);
 }
 
 //------------------------- Helper Functions for NoSlipNOFlipAlgo() --------------------------------------
@@ -258,6 +281,51 @@ float TheoreticalMaximumGroundFriction(float mu_s,float* d_C1_COM,float M,float 
   return F_F_max;
 }
 
+//----------------------------------------- ABS Algorithm ----------------------------------------------------------
+void absAlgorithm(int* PWM) {
+    // save the original PWM values
+    double PWM1 = PWM[0];
+    double PWM2 = PWM[1];
+    // find the current wheel rotation wheed and linear speed of the bike  
+    double wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
+    double wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
+    double wheelRotationSpeed = (wheelRotationSpeedF>wheelRotationSpeedB)? wheelRotationSpeedB : wheelRotationSpeedF;
+    ReadLinSpeed(mpuF, packetSizeF);
+    double slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
+    // not slipping at all
+    if(slipRatio < 0.19)
+      return;
+    // slipping, run the algorithm until stop moving or stop braking
+    while((PWM[0] > 0 || PWM[1] > 0) && linSpeed.x > 0) {
+        // set braking force to zero until slipRatio < 0.19
+        PWM[0] = 0;
+        PWM[1] = 0;
+        moveMotors(PWM);
+        unsigned long previous_time = (unsigned long)Time;
+        while(slipRatio > 0.19) {
+            if((current_time-previous_time) > 100) {
+                double wheelRotationSpeed = get_rps(2, analogPinPhoto);
+                ReadLinSpeed(mpuF, packetSizeF);
+                slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
+            }
+            unsigned long current_time = (unsigned long)Time;
+        }
+        // start braking at original force again until slipRatio > 0.19
+        PWM[0] = PWM1;
+        PWM[1] = PWM2;
+        moveMotors(PWM);
+        elapsedMillis elapsedTime;
+        while(slipRatio < 0.19) {
+            if(elapsedTime > 100) {
+                double wheelRotationSpeed = get_rps(2, analogPinPhoto);
+                ReadLinSpeed(mpuF, packetSizeF);
+                slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
+            }
+        }   
+      }  
+    return;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////// Need to write this (and run calibration test)
 void ForceToPWM(int* PWM, float* F_b_out){
   //float PWM[2] = {20, 80};
@@ -284,55 +352,55 @@ void MoveMotors(int* PWM){
 ////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////// Could use more sophisticated method here. Need to do this for both wheels
-//void ReadRPS(double* RPS){
-//  int analogPinPhoto1 = 1;
-//  int analogPinPhoto2 = 2;
-//  double current_value = 0;
-//  //int numDecreasingPoints = 4;
-//  //int count = 0;
-//  double previous_value = 1;
-//  elapsedMicros Time;
-//  unsigned int previous_time;
-//  unsigned int elapsed_time;
-//  unsigned int current_time;
-//  
-//  double current_rps = 0;
-//  double angle_btw_holes = 3.14159/3.0;
-//  int i = 0;
-//  double threshold_fall = 300.0;
-//  int numHoles = 6;
-//
-//  for(i=0; i<numHoles; i++){
-//    current_value = analogRead(analogPinPhoto1);
-//    if(previous_value > threshold_fall && current_value < threshold_fall){
-//      current_time = (unsigned int)Time;
-//      elapsed_time = current_time - previous_time;
-//      current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
-//      previous_time = current_time;
-//    }
-//    previous_value = current_value;
-//    delayMicroseconds(300);
-//  }
-//  current_rps /= numHoles;
-//  RPS[0] = current_rps;
-//
-//  current_value = 0;
-//  previous_value = 1;
-//  
-//  for(i=0; i<numHoles; i++){
-//  current_value = analogRead(analogPinPhoto2);
-//  if(previous_value > threshold_fall && current_value < threshold_fall){
-//    current_time = (unsigned int)Time;
-//    elapsed_time = current_time - previous_time;
-//    current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
-//    previous_time = current_time;
-//  }
-//  previous_value = current_value;
-//  delayMicroseconds(300);
-//  } 
-//  current_rps /= numHoles;
-//  RPS[1] = current_rps;
-//}
+bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time, int analogPinPhoto){
+  int current_value = analogRead(analogPinPhoto);
+  delayMicroseconds(100);
+//  Serial.println(((unsigned int)Time - previous_time)*pow(10,-6));
+//Serial.println((unsigned int)Time);
+//Serial.println(previous_time);
+//  Serial.println(hole_count);
+//  Serial.println(current_value);
+  if(hole_count >= max_count){
+//    Serial.println("hello");
+    return true;
+  }
+  else if(current_value > magic_thresh && previous_value <= magic_thresh){
+//    Serial.println(current_value);
+    int window_value = analogRead(analogPinPhoto);
+    while(window_value < window_thresh){
+      window_value = analogRead(analogPinPhoto);
+    }
+      
+    hole_count++;
+//    Serial.println(hole_count);
+    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
+  }
+  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
+//    Serial.println("yoyo");
+    return false;
+  } 
+  else{
+    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
+  }
+  // add window threshold
+  // add delay?  
+}
+
+double get_rps(int num_holes, int analogPinPhoto){
+  bool rps_flag = false;
+  unsigned int previous_time = (unsigned int)Time;
+  int hole_count = 0;
+  rps_flag = get_rps_flag(hole_count, num_holes, analogRead(analogPinPhoto), previous_time, analogPinPhoto);
+//  Serial.println(rps_flag);
+  if(rps_flag){
+    unsigned int current_time = (unsigned int)Time;
+    return (double)num_holes/((current_time-previous_time)*pow(10,-6)*16.0);
+  }
+  else{
+//    Serial.println("hello???");
+    return 0.0;
+  }
+}
 
 //void writeSD(outputData* data){
 //  file_t file;
@@ -435,10 +503,15 @@ void writeSD(double* data){
 //====================================== Set up functions =============================================
 //=====================================================================================================
 void setup_motors(){
-  myservoB.attach(SERVO_PIN_B);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(SERVO_PIN_A);         // attaches the servo on pin 9 to the servo object
+  myservoB.attach(SERVO_PIN_A);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(SERVO_PIN_B);         // attaches the servo on pin 9 to the servo object
   myservoB.write(10);
   myservoF.write(170);
+}
+
+void buzz_setup(int pwmpin){
+  pinMode(pwmpin, OUTPUT);  
+  digitalWrite(pwmpin, LOW);
 }
 
 void setup_SD(){
@@ -487,19 +560,20 @@ void setup() {
   //Serial.begin(9600);
   setup_SD();
   setup_mpu();
+  buzz_setup(14);
 }
 
 void loop() {
   // READ INPUTS
   int p_i = ReadPot(potpin); // Read the input potentiometer position
-  float theta = ReadAngle(); // Read the gyroscope angle
+  ReadAngle(mpuF, packetSizeF); // Read the gyroscope angle
 
   // PREVENTATIVE SYSTEM
   float* F_b_out = (float*)malloc(sizeof(float)*2); // F_b_out[0] = F_b1_out, F_b_out[1] = F_b2_out
   int* PWM = (int*)malloc(sizeof(int)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
   
   float F_F_max = TheoreticalMaximumGroundFriction(mu_s,d_C1_COM,M,0,d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM);
-  RunNoSlipNoFlipAlgo(F_b_out,F_F_max,p_i_max,p_i,mu_s,d_C1_COM,M,theta,d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM); 
+  RunNoSlipNoFlipAlgo(F_b_out,F_F_max,p_i_max,p_i,mu_s,d_C1_COM,M,ypr[1],d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM); 
 
   ForceToPWM(PWM, F_b_out);
   MoveMotors(PWM);
@@ -512,11 +586,11 @@ void loop() {
   double* RPS = (double*)malloc(sizeof(double)*2);
   
   // Infinite loop that only breaks with a significant change in potentiometer position
-  ReadRPS(RPS);
+//  ReadRPS(RPS);
   ////////////////////////////////////////////////////////////////////////////////////////
 
   // after loop:
-  free(RPS);
+//  free(RPS);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Need to write the data to the teensy at each time step
