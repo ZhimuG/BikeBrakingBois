@@ -193,11 +193,10 @@ void loop() {
   PWM[0] = val;
   PWM[1] = val;
   MoveMotors(PWM);
+  buzz_stop(14);
   if(val<170){
     make_buzz(14,500);
     writeSD_move_motors(map(val, 10, 170, 0, 20), PWM);
-    delay(2000);
-    buzz_stop(14);
   }
   // sets the servo position according to the scaled value
   delay(20);                           // waits for the servo to get there
