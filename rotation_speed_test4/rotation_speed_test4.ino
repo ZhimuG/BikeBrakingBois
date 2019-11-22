@@ -19,7 +19,6 @@ void setup() {
   myservoB.attach(3); 
   myservoB.write(10);
   myservoF.write(170); 
-
 }
 
 bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time){

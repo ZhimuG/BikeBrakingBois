@@ -6,27 +6,11 @@
 PWMServo myservoF;  // create servo object to control a servo
 PWMServo myservoB;  // create servo object to control a servo
 
-// Structs:
-
-//typedef struct{
-//    int angle[3];
-//    double accel[3];
-//    double spd[3];
-//}accelGyro;
-//
-//typedef struct{
-//    int pot;
-//    accelGyro meters[2];
-//    int PWM[2];
-//    double RPS[2];
-//    unsigned int t;
-//}outputData;
-
 // Constants:
 
 // For RunNoSlipNoFlipAlgo()
 float g = 9.81; //[m/s^2]
-int p_i_max = 950; // Define the potentiometer position corresponding to a maximum braking force [0 1023]
+int p_i_max = 150; // Define the potentiometer position corresponding to a maximum braking force [10 170]
 float mu_s = 0.4; // Similar to tire rubber on grass (underestimated for normal cycling conditions)
 float d_C1_COM[3] = {0.5, 1, 0}; //[m] x,y,z components of distance from C1 to COM
 float d_C1_C2[3] = {1.12, 0, 0}; //[m] x,y,z components of distance from C1 to C2
@@ -47,15 +31,6 @@ const int potpin = A3;  // analog pin used to connect the potentiometer
 // SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
 #define SD_FAT_TYPE 0
-/*
-  Change the value of SD_CS_PIN if you are using SPI and
-  your hardware does not use the default value, SS.
-  Common values are:
-  Arduino Ethernet shield: pin 4
-  Sparkfun SD shield: pin 8
-  Adafruit SD shields and modules: pin 10
-*/
-
 // SDCARD_SS_PIN is defined for the built-in SD on some boards.
 #ifndef SDCARD_SS_PIN
 const uint8_t SD_CS_PIN = SS;
@@ -92,9 +67,24 @@ const uint16_t N_PRINT = 20000;
 ////////////////////////////////////////////////////////////////////////////////////////
 // Read input potentiometer value
 int ReadPot(const int potpin){
-  int val = analogRead(potpin);
+  val=0;
+  for(int i=0; i<5; i++){
+    val += analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
+    delay(5);
+  }
+  val = val/5;
+  //Serial.println(val);
+  int rounder = 10;
+   if(val>180){
+    val=220;
+  }
+  val = val/rounder;
+//  Serial.println(val);
+//  delay(20);
+  val = map(val, 0, 22, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
   return val;
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////// Need to write this
@@ -105,6 +95,7 @@ float ReadAngle(){
 }
 //////////////////////////////////////////////////////////////////////////////////////// 
 
+// Helper Functions for NoSlipNOFlipAlgo()
 float DesiredGroundFriction(float F_F_max, int p_i_max, int p_i){
   float F_F_desired = min(F_F_max, F_F_max*p_i/p_i_max);
   return F_F_desired;
@@ -219,61 +210,61 @@ void ForceToPWM(int* PWM, float* F_b_out){
 //////////////////////////////////////////////////////////////////////////////////////// 
 void MoveMotors(int* PWM){
   //Serial.println("success");
-  myservoF.write(PWM[0]);
-  myservoB.write(PWM[1]);
+  myservoF.write(10+PWM[0]);
+  myservoB.write(170-PWM[1]);
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////// Could use more sophisticated method here. Need to do this for both wheels
-void ReadRPS(double* RPS){
-  int analogPinPhoto1 = 1;
-  int analogPinPhoto2 = 2;
-  double current_value = 0;
-  //int numDecreasingPoints = 4;
-  //int count = 0;
-  double previous_value = 1;
-  elapsedMicros Time;
-  unsigned int previous_time;
-  unsigned int elapsed_time;
-  unsigned int current_time;
-  
-  double current_rps = 0;
-  double angle_btw_holes = 3.14159/3.0;
-  int i = 0;
-  double threshold_fall = 300.0;
-  int numHoles = 6;
-
-  for(i=0; i<numHoles; i++){
-    current_value = analogRead(analogPinPhoto1);
-    if(previous_value > threshold_fall && current_value < threshold_fall){
-      current_time = (unsigned int)Time;
-      elapsed_time = current_time - previous_time;
-      current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
-      previous_time = current_time;
-    }
-    previous_value = current_value;
-    delayMicroseconds(300);
-  }
-  current_rps /= numHoles;
-  RPS[0] = current_rps;
-
-  current_value = 0;
-  previous_value = 1;
-  
-  for(i=0; i<numHoles; i++){
-  current_value = analogRead(analogPinPhoto2);
-  if(previous_value > threshold_fall && current_value < threshold_fall){
-    current_time = (unsigned int)Time;
-    elapsed_time = current_time - previous_time;
-    current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
-    previous_time = current_time;
-  }
-  previous_value = current_value;
-  delayMicroseconds(300);
-  } 
-  current_rps /= numHoles;
-  RPS[1] = current_rps;
-}
+//void ReadRPS(double* RPS){
+//  int analogPinPhoto1 = 1;
+//  int analogPinPhoto2 = 2;
+//  double current_value = 0;
+//  //int numDecreasingPoints = 4;
+//  //int count = 0;
+//  double previous_value = 1;
+//  elapsedMicros Time;
+//  unsigned int previous_time;
+//  unsigned int elapsed_time;
+//  unsigned int current_time;
+//  
+//  double current_rps = 0;
+//  double angle_btw_holes = 3.14159/3.0;
+//  int i = 0;
+//  double threshold_fall = 300.0;
+//  int numHoles = 6;
+//
+//  for(i=0; i<numHoles; i++){
+//    current_value = analogRead(analogPinPhoto1);
+//    if(previous_value > threshold_fall && current_value < threshold_fall){
+//      current_time = (unsigned int)Time;
+//      elapsed_time = current_time - previous_time;
+//      current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
+//      previous_time = current_time;
+//    }
+//    previous_value = current_value;
+//    delayMicroseconds(300);
+//  }
+//  current_rps /= numHoles;
+//  RPS[0] = current_rps;
+//
+//  current_value = 0;
+//  previous_value = 1;
+//  
+//  for(i=0; i<numHoles; i++){
+//  current_value = analogRead(analogPinPhoto2);
+//  if(previous_value > threshold_fall && current_value < threshold_fall){
+//    current_time = (unsigned int)Time;
+//    elapsed_time = current_time - previous_time;
+//    current_rps += (angle_btw_holes/elapsed_time)*pow(10,6);
+//    previous_time = current_time;
+//  }
+//  previous_value = current_value;
+//  delayMicroseconds(300);
+//  } 
+//  current_rps /= numHoles;
+//  RPS[1] = current_rps;
+//}
 ////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////// Need to write this
@@ -383,6 +374,8 @@ void writeSD(double* data){
 void setup() {
   myservoB.attach(SERVO_PIN_B);         // attaches the servo on pin 9 to the servo object
   myservoF.attach(SERVO_PIN_A);         // attaches the servo on pin 9 to the servo object
+  myservoB.write(10);
+  myservoF.write(170);
   //Serial.begin(9600);
   if (!sd.begin(SD_CONFIG)) {
     sd.initErrorHalt(&Serial);
