@@ -320,32 +320,32 @@ void get_rps_data(unsigned int dt, int num_points, int* rpsF, int* rpsB){
 }
 
 
-f(hole_count >= max_count){
-//    Serial.println("hello");
-    return true;
-  }
-  else if(current_value > magic_thresh && previous_value <= magic_thresh){
-//    Serial.println(current_value);
-    int window_value = analogRead(analogPinPhoto);
-    while(window_value < window_thresh){  
-      window_value = analogRead(analogPinPhoto);
-      if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
-//    Serial.println("yoyo");
-      return false;
-      } 
-    }
-      
-    hole_count++;
-    if(hole_count == 1){
-      previous_time = (unsigned int)Time;
-    }
-//    Serial.println(hole_count);
-    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
-  }
-  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
-//    Serial.println("yoyo");
-    return false;
-  } 
+//f(hole_count >= max_count){
+////    Serial.println("hello");
+//    return true;
+//  }
+//  else if(current_value > magic_thresh && previous_value <= magic_thresh){
+////    Serial.println(current_value);
+//    int window_value = analogRead(analogPinPhoto);
+//    while(window_value < window_thresh){  
+//      window_value = analogRead(analogPinPhoto);
+//      if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
+////    Serial.println("yoyo");
+//      return false;
+//      } 
+//    }
+//      
+//    hole_count++;
+//    if(hole_count == 1){
+//      previous_time = (unsigned int)Time;
+//    }
+////    Serial.println(hole_count);
+//    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
+//  }
+//  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
+////    Serial.println("yoyo");
+//    return false;
+//  } 
 
 void get_rps2(int* rpsF, int* rpsB, int num_points, int num_holes){
   int i=0;
@@ -359,7 +359,6 @@ void get_rps2(int* rpsF, int* rpsB, int num_points, int num_holes){
       return;
       } 
       window_value = rpsF[i+1];
-      
     }
   }
 ++i;
@@ -368,21 +367,21 @@ void get_rps2(int* rpsF, int* rpsB, int num_points, int num_holes){
 
 // 300 ms
 void loop() {
-  unsigned int dt = 50 //[us]
-  unsigned int collection_time = 100*pow(10,3);
-  int num_points = collection_time/dt;
-  int* rpsF = (int*)malloc(sizeof(int)*num_points);
-  int* rpsB = (int*)malloc(sizeof(int)*num_points);
-  int* rps_arr = (int*)malloc(sizeof(int)*2);
+//  unsigned int dt = 50 //[us]
+//  unsigned int collection_time = 100*pow(10,3);
+//  int num_points = collection_time/dt;
+//  int* rpsF = (int*)malloc(sizeof(int)*num_points);
+//  int* rpsB = (int*)malloc(sizeof(int)*num_points);
+//  int* rps_arr = (int*)malloc(sizeof(int)*2);
   
   
   // put your main code here, to run repeatedly:
   double rps_back = get_rps(4, analogPinPhoto1);
-//  Serial.println(rps_back);
-  Serial.print(rps_back);
-  double rps_front = get_rps(4, analogPinPhoto2);
-  Serial.print(",");
-  Serial.println(rps_front);
+  Serial.println(rps_back);
+//  Serial.print(rps_back);
+//  double rps_front = get_rps(4, analogPinPhoto2);
+//  Serial.print(",");
+//  Serial.println(rps_front);
 //  delayMicroseconds(1000);
 //    delay(100);
 
