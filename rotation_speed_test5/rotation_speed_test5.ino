@@ -59,8 +59,8 @@ int loopCount = 0;
 
 void setup() {
   // put your setup code here, to run once:
-  myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
+  myservoB.attach(2);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(3);         // attaches the servo on pin 9 to the servo object
   //  Serial.begin(9600);
   myservoB.write(10);
   myservoF.write(170);
@@ -251,11 +251,11 @@ int window_thresh = 218;
 int analogPinPhoto1 = 31;
 int analogPinPhoto2 = 32;
 elapsedMicros Time;
-unsigned int max_time = 300; //[ms]
+unsigned int max_time = 500; //[ms]
 
 bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time, int analogPinPhoto){
   int current_value = analogRead(analogPinPhoto);
-  delayMicroseconds(100);
+  delayMicroseconds(50);
 //  Serial.println(((unsigned int)Time - previous_time)*pow(10,-6));
 //Serial.println((unsigned int)Time);
 //Serial.println(previous_time);
@@ -268,11 +268,18 @@ bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned in
   else if(current_value > magic_thresh && previous_value <= magic_thresh){
 //    Serial.println(current_value);
     int window_value = analogRead(analogPinPhoto);
-    while(window_value < window_thresh){
+    while(window_value < window_thresh){  
       window_value = analogRead(analogPinPhoto);
+      if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
+//    Serial.println("yoyo");
+      return false;
+      } 
     }
       
     hole_count++;
+    if(hole_count == 1){
+      previous_time = (unsigned int)Time;
+    }
 //    Serial.println(hole_count);
     return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
   }
@@ -303,11 +310,84 @@ double get_rps(int num_holes, int analogPinPhoto){
   }
 }
 
+void get_rps_data(unsigned int dt, int num_points, int* rpsF, int* rpsB){
+  
+  for(int i=0;i<num_points;i++){
+    rpsF[i] = analogRead(analogPinPhoto1);
+    rpsB[i] = analogRead(analogPinPhoto2);
+    delayMicroseconds(dt);
+  }  
+}
+
+
+f(hole_count >= max_count){
+//    Serial.println("hello");
+    return true;
+  }
+  else if(current_value > magic_thresh && previous_value <= magic_thresh){
+//    Serial.println(current_value);
+    int window_value = analogRead(analogPinPhoto);
+    while(window_value < window_thresh){  
+      window_value = analogRead(analogPinPhoto);
+      if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
+//    Serial.println("yoyo");
+      return false;
+      } 
+    }
+      
+    hole_count++;
+    if(hole_count == 1){
+      previous_time = (unsigned int)Time;
+    }
+//    Serial.println(hole_count);
+    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
+  }
+  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
+//    Serial.println("yoyo");
+    return false;
+  } 
+
+void get_rps2(int* rpsF, int* rpsB, int num_points, int num_holes){
+  int i=0;
+  while(i<num_points){
+    if(rpsF[i+1] > magic_thresh && rpsF[i] <= magic_thresh){
+      int window_value = rpsF[i+1];
+      while(window_value < window_thresh){  
+      ++i;
+      if(i==num_points-2){
+//    Serial.println("yoyo");
+      return;
+      } 
+      window_value = rpsF[i+1];
+      
+    }
+  }
+++i;
+}
+}
+
+// 300 ms
 void loop() {
+  unsigned int dt = 50 //[us]
+  unsigned int collection_time = 100*pow(10,3);
+  int num_points = collection_time/dt;
+  int* rpsF = (int*)malloc(sizeof(int)*num_points);
+  int* rpsB = (int*)malloc(sizeof(int)*num_points);
+  int* rps_arr = (int*)malloc(sizeof(int)*2);
+  
+  
   // put your main code here, to run repeatedly:
-  double rps_back = get_rps(2, analogPinPhoto1);
-  Serial.println(rps_back);
-  delay(20);
+  double rps_back = get_rps(4, analogPinPhoto1);
+//  Serial.println(rps_back);
+  Serial.print(rps_back);
+  double rps_front = get_rps(4, analogPinPhoto2);
+  Serial.print(",");
+  Serial.println(rps_front);
+//  delayMicroseconds(1000);
+//    delay(100);
+
+//  Serial.println(analogRead(31));
+//  delayMicroseconds(100);
   
 
 // Calibration:  
