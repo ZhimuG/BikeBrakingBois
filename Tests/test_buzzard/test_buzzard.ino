@@ -15,12 +15,15 @@ void buzz_setup(int pwmpin){
   digitalWrite(pwmpin, LOW);
 }
 
-void make_buzz(int pwmpin, int frequency){
-  double dTime = 1000 / (frequency*2);
-  digitalWrite(pwmpin, HIGH);
-  delay(dTime);
-  digitalWrite(pwmpin, LOW);
-  delay(dTime);
+void make_buzz(int pwmpin, int Frequency, int elapsedTime){
+  double dTime = 1000 / (Frequency*2);
+  int count = elapsedTime/dTime;
+  for(int i=0; i<count; i++){
+    digitalWrite(pwmpin, HIGH);
+    delay(dTime);
+    digitalWrite(pwmpin, LOW);
+    delay(dTime);
+  }
 }
 
 void buzz_stop(int pwmpin){
@@ -29,6 +32,6 @@ void buzz_stop(int pwmpin){
 
 void loop() {
   // put your main code here, to run repeatedly:
-//  make_buzz(14, 500);
+//  make_buzz(14, 500, 1000);
   buzz_stop(14);
 }

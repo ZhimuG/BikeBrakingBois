@@ -98,11 +98,12 @@ int magic_thresh = 212;
 int window_thresh = 218;
 int analogPinPhotoB = 31;
 int analogPinPhotoF = 32;
-elapsedMicros Time;
 unsigned int max_time = 300; //[ms]
 
-//=============================================================================================================
+//-------------------------------------- For ABS --------------------------------------------------------------
+float wheelRadius = 0.6604; //[m]
 
+//=============================================================================================================
 //======================================= Modular Functions ===================================================
 //------------------------------- Read input potentiometer value ----------------------------------------------
 int ReadPot(const int potpin){
@@ -174,12 +175,15 @@ void ReadLinSpeed(MPU6050 mpu, uint16_t packetSize){
 }
 
 //------------------------- Buzzer Functions -------------------------------------------------------------
-void make_buzz(int pwmpin, int frequency){
-  double dTime = 1000 / (frequency*2);
-  digitalWrite(pwmpin, HIGH);
-  delay(dTime);
-  digitalWrite(pwmpin, LOW);
-  delay(dTime);
+void make_buzz(int pwmpin, int Frequency, int elapsedTime){
+  double dTime = 1000 / (Frequency*2);
+  int count = elapsedTime/dTime;
+  for(int i=0; i<count; i++){
+    digitalWrite(pwmpin, HIGH);
+    delay(dTime);
+    digitalWrite(pwmpin, LOW);
+    delay(dTime);
+  }
 }
 
 void buzz_stop(int pwmpin){
@@ -300,27 +304,32 @@ void absAlgorithm(int* PWM) {
         // set braking force to zero until slipRatio < 0.19
         PWM[0] = 0;
         PWM[1] = 0;
-        moveMotors(PWM);
+        MoveMotors(PWM);
         unsigned long previous_time = (unsigned long)Time;
         while(slipRatio > 0.19) {
-            if((current_time-previous_time) > 100) {
-                double wheelRotationSpeed = get_rps(2, analogPinPhoto);
-                ReadLinSpeed(mpuF, packetSizeF);
-                slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
-            }
-            unsigned long current_time = (unsigned long)Time;
+          unsigned long current_time1 = (unsigned long)Time;
+          if((current_time1-previous_time) > 100) {
+              float wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
+              float wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
+              wheelRotationSpeed = wheelRotationSpeedF > wheelRotationSpeedB ? wheelRotationSpeedB : wheelRotationSpeedF;
+              ReadLinSpeed(mpuF, packetSizeF);
+              slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
+          }
         }
         // start braking at original force again until slipRatio > 0.19
         PWM[0] = PWM1;
         PWM[1] = PWM2;
-        moveMotors(PWM);
-        elapsedMillis elapsedTime;
+        MoveMotors(PWM);
+        previous_time = (unsigned long)Time;
         while(slipRatio < 0.19) {
-            if(elapsedTime > 100) {
-                double wheelRotationSpeed = get_rps(2, analogPinPhoto);
-                ReadLinSpeed(mpuF, packetSizeF);
-                slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
-            }
+          unsigned long current_time2 = (unsigned long)Time;
+          if((current_time2-previous_time) > 100) {
+              float wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
+              float wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
+              wheelRotationSpeed = wheelRotationSpeedF > wheelRotationSpeedB ? wheelRotationSpeedB : wheelRotationSpeedF;
+              ReadLinSpeed(mpuF, packetSizeF);
+              slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
+          }
         }   
       }  
     return;
@@ -503,8 +512,8 @@ void writeSD(double* data){
 //====================================== Set up functions =============================================
 //=====================================================================================================
 void setup_motors(){
-  myservoB.attach(SERVO_PIN_A);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(SERVO_PIN_B);         // attaches the servo on pin 9 to the servo object
+  myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
   myservoB.write(10);
   myservoF.write(170);
 }

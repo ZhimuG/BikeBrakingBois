@@ -65,6 +65,11 @@ unsigned int max_time = 300; //[ms]
 
 int loopCount = 0;
 
+void buzz_setup(int pwmpin){
+  pinMode(pwmpin, OUTPUT);  
+  digitalWrite(pwmpin, LOW);
+}
+
 void setup() {
   // put your setup code here, to run once:
   myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
@@ -75,6 +80,22 @@ void setup() {
   if (!sd.begin(SD_CONFIG)) {
     sd.initErrorHalt(&Serial);
   }
+  buzz_setup(14);
+}
+
+void make_buzz(int pwmpin, int Frequency, int elapsedTime){
+  double dTime = 1000 / (Frequency*2);
+  int count = elapsedTime/dTime;
+  for(int i=0; i<count; i++){
+    digitalWrite(pwmpin, HIGH);
+    delay(dTime);
+    digitalWrite(pwmpin, LOW);
+    delay(dTime);
+  }
+}
+
+void buzz_stop(int pwmpin){
+  digitalWrite(pwmpin, LOW);
 }
 
 void writeSD(double* data){
@@ -330,7 +351,7 @@ void loop() {
 //  delay(1000);
 //  free(RPS);
 //  free(PWM);
-
+  buzz_stop(14);
   
   // Step 1: Reset motor positions to zero
   loopCount++;
@@ -377,6 +398,7 @@ void loop() {
 //  unsigned int curr = (unsigned int)Time;
   // can just write this to the serial monitor
   print_cal(RPS_arr, dt, N, PWM[1]);
+  make_buzz(14, 500, 1000);
 //  Serial.println(((double)curr-(double)prev)*pow(10,-6));
   free(PWM);
   free(RPS);
