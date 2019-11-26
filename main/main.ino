@@ -512,8 +512,8 @@ void writeSD(double* data){
 //====================================== Set up functions =============================================
 //=====================================================================================================
 void setup_motors(){
-  myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
+  myservoB.attach(2);
+  myservoF.attach(3);
   myservoB.write(10);
   myservoF.write(170);
 }

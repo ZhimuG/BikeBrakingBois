@@ -72,8 +72,8 @@ void buzz_setup(int pwmpin){
 
 void setup() {
   // put your setup code here, to run once:
-  myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
+  myservoB.attach(2);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(3);         // attaches the servo on pin 9 to the servo object
   //  Serial.begin(9600);
   myservoB.write(10);
   myservoF.write(170);
@@ -249,6 +249,9 @@ void writeSD_cal(double* RPS_arr, float dt, int N, int PWM){
   //-----------------------------------------------
   // Change this section if input data type changes
 //  int data_arr_len = 6;
+  file.print("Datapoint ");
+  file.print(loopCount);
+  file.println();
   file.print(PWM);
   file.print(", ");
   file.print(dt);
@@ -275,7 +278,7 @@ void writeSD_cal(double* RPS_arr, float dt, int N, int PWM){
 
 bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time, int analogPinPhoto){
   int current_value = analogRead(analogPinPhoto);
-  delayMicroseconds(100);
+  delayMicroseconds(50);
 //  Serial.println(((unsigned int)Time - previous_time)*pow(10,-6));
 //Serial.println((unsigned int)Time);
 //Serial.println(previous_time);
@@ -288,11 +291,18 @@ bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned in
   else if(current_value > magic_thresh && previous_value <= magic_thresh){
 //    Serial.println(current_value);
     int window_value = analogRead(analogPinPhoto);
-    while(window_value < window_thresh){
+    while(window_value < window_thresh){  
       window_value = analogRead(analogPinPhoto);
+      if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
+//    Serial.println("yoyo");
+      return false;
+      } 
     }
       
     hole_count++;
+    if(hole_count == 1){
+      previous_time = (unsigned int)Time;
+    }
 //    Serial.println(hole_count);
     return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
   }
@@ -324,6 +334,9 @@ double get_rps(int num_holes, int analogPinPhoto){
 }
 
 void loop() {
+  if(loopCount > 17){
+    return;
+  }
   // put your main code here, to run repeatedly:
   
 //  val = analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
@@ -363,7 +376,7 @@ void loop() {
   // Step 2: Choose PWM 
   //PWM[0] = 100;
   PWM[0] = 170;
-  PWM[1] = stepSize*loopCount + 30;
+  PWM[1] = stepSize*loopCount;
   // Step 3: Spin wheel and start the program 
   // monitor the pot in a while loop to trigger program
   int pot = ReadPot(potpin);
@@ -386,7 +399,7 @@ void loop() {
 //    RPS_arr[i] = RPS[0];
 //    Serial.println(RPS[0]);
 //    unsigned int prev = (unsigned int)Time;
-    RPS_arr[i] = get_rps(2, analogPinPhoto1);
+    RPS_arr[i] = get_rps(4, analogPinPhoto1);
     delay(dt);
 //    unsigned int curr = (unsigned int)Time;
 //    if(RPS[0] == 0){
@@ -397,7 +410,7 @@ void loop() {
   // Step 6: Write RPS_arr, dt, N
 //  unsigned int curr = (unsigned int)Time;
   // can just write this to the serial monitor
-  print_cal(RPS_arr, dt, N, PWM[1]);
+  writeSD_cal(RPS_arr, dt, N, PWM[1]);
   make_buzz(14, 500, 1000);
 //  Serial.println(((double)curr-(double)prev)*pow(10,-6));
   free(PWM);

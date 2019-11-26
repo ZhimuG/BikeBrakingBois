@@ -4,8 +4,8 @@ PWMServo myservoF;  // create servo object to control a servo
 PWMServo myservoB;  // create servo object to control a servo
 void setup() {
   // put your setup code here, to run once:
-    myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
+    myservoB.attach(2);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(3);         // attaches the servo on pin 9 to the servo object
   //  Serial.begin(9600);
   myservoB.write(10);
   myservoF.write(170);
