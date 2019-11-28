@@ -104,14 +104,14 @@ void writeSD_move_motors(double* RPS_arr, float dt, int N, int PWM){
 }
 
 void setup() {
-  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
-  myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(3);         // attaches the servo on pin 9 to the servo object
+  myservoB.attach(2);         // attaches the servo on pin 9 to the servo object
   //myservo.attach(SERVO_PIN_A, 1000, 2000); // some motors need min/max setting
   myservoB.write(10);
   myservoF.write(170);
-  if (!sd.begin(SD_CONFIG)) {
-    sd.initErrorHalt(&Serial);
-  }
+//  if (!sd.begin(SD_CONFIG)) {
+//    sd.initErrorHalt(&Serial);
+//  }
 } 
 
 void MoveMotors(int* PWM){
@@ -146,11 +146,14 @@ int ReadPot(const int potpin){
 void loop() {
 
   int* PWM = (int*)malloc(sizeof(int)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
-  int val = ReadPot(potpin);
-  PWM[0] = val;
-  PWM[1] = val;
-  MoveMotors(PWM);
+//  int val = ReadPot(potpin);
+//  PWM[0] = val;
+//  PWM[1] = val;
+//  MoveMotors(PWM);
+  myservoF.write(170);
+  myservoB.write(20);
+  Serial.println(analogRead(31));
   
   // sets the servo position according to the scaled value
-  delay(20);                           // waits for the servo to get there
+  delayMicroseconds(100);                           // waits for the servo to get there
 }

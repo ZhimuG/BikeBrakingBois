@@ -64,9 +64,9 @@ void setup() {
   //  Serial.begin(9600);
   myservoB.write(10);
   myservoF.write(170);
-  if (!sd.begin(SD_CONFIG)) {
-    sd.initErrorHalt(&Serial);
-  }
+//  if (!sd.begin(SD_CONFIG)) {
+//    sd.initErrorHalt(&Serial);
+//  }
 }
 
 void writeSD(double* data){
@@ -311,69 +311,90 @@ double get_rps(int num_holes, int analogPinPhoto){
 }
 
 void get_rps_data(unsigned int dt, int num_points, int* rpsF, int* rpsB){
-  
+//  Serial.println("hello");
   for(int i=0;i<num_points;i++){
-    rpsF[i] = analogRead(analogPinPhoto1);
-    rpsB[i] = analogRead(analogPinPhoto2);
+    rpsF[i] = analogRead(analogPinPhoto2);
+    rpsB[i] = analogRead(analogPinPhoto1);
+    Serial.println(rpsB[i]);
     delayMicroseconds(dt);
   }  
 }
 
-
-//f(hole_count >= max_count){
-////    Serial.println("hello");
-//    return true;
-//  }
-//  else if(current_value > magic_thresh && previous_value <= magic_thresh){
-////    Serial.println(current_value);
-//    int window_value = analogRead(analogPinPhoto);
-//    while(window_value < window_thresh){  
-//      window_value = analogRead(analogPinPhoto);
-//      if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
-////    Serial.println("yoyo");
-//      return false;
-//      } 
-//    }
-//      
-//    hole_count++;
-//    if(hole_count == 1){
-//      previous_time = (unsigned int)Time;
-//    }
-////    Serial.println(hole_count);
-//    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
-//  }
-//  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
-////    Serial.println("yoyo");
-//    return false;
-//  } 
-
-void get_rps2(int* rpsF, int* rpsB, int num_points, int num_holes){
-  int i=0;
-  while(i<num_points){
-    if(rpsF[i+1] > magic_thresh && rpsF[i] <= magic_thresh){
-      int window_value = rpsF[i+1];
+void get_rps2(int* rpsF, int* rpsB, int num_points, double* rps_arr, unsigned int dt){
+  int iF = 0;
+  int iB = 0;
+  int countF = 0;
+  int countB = 0;
+  int last_iF = 100000, first_iF = 0, last_iB = 100000, first_iB = 0;
+  while(iF<num_points-1 && iB<num_points-1){
+    if(rpsF[iF+1] > magic_thresh && rpsF[iF] <= magic_thresh){
+      countF++;
+      if(countF==1){
+        first_iF = iF;
+      }
+      last_iF = iF;
+      int window_value = rpsF[iF+1];
       while(window_value < window_thresh){  
-      ++i;
-      if(i==num_points-2){
-//    Serial.println("yoyo");
-      return;
-      } 
-      window_value = rpsF[i+1];
+        ++iF;
+        if(iF==num_points-2){
+//      Serial.println("yoyo");
+        return;
+        } 
+      window_value = rpsF[iF+1];
+      }
     }
+  ++iF;
+  
+//    Serial.println(iB);
+//    Serial.println(rpsB[iB]);
+//    Serial.println(rpsB[iB+1]);
+    
+    if(rpsB[iB+1] > magic_thresh && rpsB[iB] <= magic_thresh){
+//      Serial.println("hello");
+      countB++;
+      if(countB==1){
+        first_iB = iB;
+      }
+      last_iB = iB;
+      int window_value = rpsB[iB+1];
+      while(window_value < window_thresh){  
+        ++iB;
+        if(iB==num_points-2){
+//      Serial.println("yoyo");
+        return;
+        } 
+      window_value = rpsB[iB+1];
+      }
+    }
+  ++iB;
   }
-++i;
-}
+rps_arr[0] = (double)countF/((last_iF - first_iF)*dt*pow(10,-6)*16.0);
+rps_arr[1] = (double)countB/((last_iB - first_iB)*dt*pow(10,-6)*16.0);
 }
 
 // 300 ms
 void loop() {
-//  unsigned int dt = 50 //[us]
+//  unsigned int dt = 50; //[us]
 //  unsigned int collection_time = 100*pow(10,3);
 //  int num_points = collection_time/dt;
 //  int* rpsF = (int*)malloc(sizeof(int)*num_points);
 //  int* rpsB = (int*)malloc(sizeof(int)*num_points);
-//  int* rps_arr = (int*)malloc(sizeof(int)*2);
-  
+//  double* rps_arr = (double*)malloc(sizeof(double)*2);
+//  get_rps_data(dt, num_points, rpsF, rpsB);
+////  for(int i=0; i<num_points; 
+//  get_rps2(rpsF, rpsB, num_points, rps_arr, dt);
+////  Serial.println(rps_arr[1]);
+////  Serial.println(analogRead(analogPinPhoto1));
+//  free(rpsF);
+//  free(rpsB);
+//  free(rps_arr);
+//
+//
+//  delay(10000);
+
+
+//  Serial.println(analogRead(analogPinPhoto1));
+//  delayMicroseconds(100);
   
   // put your main code here, to run repeatedly:
   double rps_back = get_rps(4, analogPinPhoto1);
