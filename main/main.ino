@@ -17,8 +17,10 @@ MPU6050 mpuF;
 MPU6050 mpuB;
 
 //----------------------------------------------- Constants ---------------------------------------------------
+#define g 9.81f
+
+//----------------------------------------------- Variables ---------------------------------------------------
 //------------------------------------------ For RunNoSlipNoFlipAlgo ------------------------------------------
-float g = 9.81; //[m/s^2]
 int p_i_max = 150; // Define the potentiometer position corresponding to a maximum braking force [10 170]
 float mu_s = 0.4; // Similar to tire rubber on grass (underestimated for normal cycling conditions)
 float d_C1_COM[3] = {0.5, 1, 0}; //[m] x,y,z components of distance from C1 to COM
