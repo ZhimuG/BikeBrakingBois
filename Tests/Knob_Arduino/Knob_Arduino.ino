@@ -13,12 +13,12 @@
 //   Teensy++ 1.0 or 2.0           25            26            27
 //   Teensy LC & 3.x                 (all PWM pins are usable)
 
-#include <PWMServo.h>
+#include <Servo.h>
 
-PWMServo myservoF;  // create servo object to control a servo
-PWMServo myservoB;
+Servo myservoF;  // create servo object to control a servo
+Servo myservoB;
 
-const int potpin = A3;  // analog pin used to connect the potentiometer
+const int potpin = A0;  // changed from A3
 int val;    // variable to read the value from the analog pin
 
 int ReadPot(const int potpin){
@@ -48,8 +48,8 @@ void MoveMotors(int PWM){
 
 void setup() {
   // put your setup code here, to run once:
-    myservoB.attach(2);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(3);         // attaches the servo on pin 9 to the servo object
+  myservoB.attach(9);         // changed from 2
+  myservoF.attach(10);         // changed from 3
   //  Serial.begin(9600);
   myservoB.write(10);
   myservoF.write(170);
