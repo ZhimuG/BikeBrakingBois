@@ -64,7 +64,9 @@ float* get_rps(){
         count[4] = j;
       }
       count[5] = j;
+      // value between thresholds as window values
       int window_valueB = rpsData[j+1];
+      // Skip rest of the same peak
       while(window_valueB < window_thresh){  
         ++j;
         if(j==NUM_POINTS-2){
@@ -73,8 +75,17 @@ float* get_rps(){
         window_valueB = rpsData[j+1];
       }
     }
-    ++j;
+    ++j; // increment front counter
   }
+  if(debug){
+    Serial.print(count[0]);
+    Serial.print("\t");
+    Serial.println(count[2]-count[1]);
+    Serial.print(count[3]);
+    Serial.print("\t");
+    Serial.println(count[5]-count[4]);
+  }
+  // Calculate RPS. If only one peak, set speed to 0
   if(count[0]==1){
     rps[0]=0;
   }else if(count[3]==1){
@@ -100,6 +111,7 @@ void loop() {
   float* rps;
   rps = get_rps();
   if(debug){
+    Serial.println((sizeof(rps) / sizeof(rps[0])));
     Serial.print(rps[0]);
     Serial.print(",");
     Serial.print(rps[1]);
