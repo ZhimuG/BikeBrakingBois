@@ -18,6 +18,8 @@ MPU6050 mpuB;
 
 //----------------------------------------------- Constants ---------------------------------------------------
 #define g 9.81f
+#define NUM_POINTS 2000
+#define BIG_NUMBER 1000000
 
 //----------------------------------------------- Variables ---------------------------------------------------
 //------------------------------------------ For RunNoSlipNoFlipAlgo ------------------------------------------
@@ -96,11 +98,10 @@ VectorFloat linSpeed = VectorFloat();
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 //------------------------------------ For RPS ----------------------------------------------------------------
-int magic_thresh = 212;
-int window_thresh = 218;
-int analogPinPhotoB = 31;
-int analogPinPhotoF = 32;
-unsigned int max_time = 300; //[ms]
+const int magic_thresh = 212;
+const int window_thresh = 218;
+const int analogPinPhotoB = 31;
+const int analogPinPhotoF = 32;
 
 //-------------------------------------- For ABS --------------------------------------------------------------
 float wheelRadius = 0.6604; //[m]
@@ -108,7 +109,7 @@ float wheelRadius = 0.6604; //[m]
 //=============================================================================================================
 //======================================= Modular Functions ===================================================
 //------------------------------- Read input potentiometer value ----------------------------------------------
-int ReadPot(const int potpin){
+int ReadPot(){
   int val=0;
   for(int i=0; i<5; i++){
     val += analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
@@ -224,7 +225,8 @@ float MaximumGroundFrictionNoseOver(float M, float theta,float* d_A1_COM){
   return F_F1_NO;
 }
 
-void RunNoSlipNoFlipAlgo(float* F_b_out, float F_F_max,int p_i_max,int p_i, float mu_s,float* d_C1_COM,float M,float theta,float* d_C1_C2,float SB1,float R,float r,float I_A2,float* d_C2_COM,float SB2,float I_A1,float* d_A1_COM){
+float* RunNoSlipNoFlipAlgo(float F_F_max,int p_i_max,int p_i, float mu_s,float* d_C1_COM,float M,float theta,float* d_C1_C2,float SB1,float R,float r,float I_A2,float* d_C2_COM,float SB2,float I_A1,float* d_A1_COM){
+  static float F_b_out[2] = {.0, .0};
   // Step 1:
   float F_F_desired = DesiredGroundFriction(F_F_max, p_i_max, p_i);
   // Step 2: 
@@ -275,7 +277,7 @@ void RunNoSlipNoFlipAlgo(float* F_b_out, float F_F_max,int p_i_max,int p_i, floa
     //Serial.println(F_b_out[1]);
   }
   
-  //return F_b_out;
+  return F_b_out;
 }
 
 float TheoreticalMaximumGroundFriction(float mu_s,float* d_C1_COM,float M,float theta,float* d_C1_C2,float SB1,float R,float r,float I_A2,float* d_C2_COM,float SB2,float I_A1,float* d_A1_COM){
@@ -288,14 +290,13 @@ float TheoreticalMaximumGroundFriction(float mu_s,float* d_C1_COM,float M,float 
 }
 
 //----------------------------------------- ABS Algorithm ----------------------------------------------------------
-void absAlgorithm(int* PWM) {
+void absAlgorithm(int PWM[]) {
     // save the original PWM values
     double PWM1 = PWM[0];
     double PWM2 = PWM[1];
     // find the current wheel rotation wheed and linear speed of the bike  
-    double wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-    double wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-    double wheelRotationSpeed = (wheelRotationSpeedF>wheelRotationSpeedB)? wheelRotationSpeedB : wheelRotationSpeedF;
+    float* rps = get_rps();
+    float wheelRotationSpeed = (rps[0]>rps[1])? rps[1] : rps[0];
     ReadLinSpeed(mpuF, packetSizeF);
     double slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
     // not slipping at all
@@ -311,9 +312,8 @@ void absAlgorithm(int* PWM) {
         while(slipRatio > 0.19) {
           unsigned long current_time1 = (unsigned long)Time;
           if((current_time1-previous_time) > 100) {
-              float wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-              float wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-              wheelRotationSpeed = wheelRotationSpeedF > wheelRotationSpeedB ? wheelRotationSpeedB : wheelRotationSpeedF;
+              float* rps = get_rps();
+              float wheelRotationSpeed = (rps[0]>rps[1])? rps[1] : rps[0];
               ReadLinSpeed(mpuF, packetSizeF);
               slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
           }
@@ -326,9 +326,8 @@ void absAlgorithm(int* PWM) {
         while(slipRatio < 0.19) {
           unsigned long current_time2 = (unsigned long)Time;
           if((current_time2-previous_time) > 100) {
-              float wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-              float wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-              wheelRotationSpeed = wheelRotationSpeedF > wheelRotationSpeedB ? wheelRotationSpeedB : wheelRotationSpeedF;
+              float* rps = get_rps();
+              float wheelRotationSpeed = (rps[0]>rps[1])? rps[1] : rps[0];
               ReadLinSpeed(mpuF, packetSizeF);
               slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
           }
@@ -338,7 +337,7 @@ void absAlgorithm(int* PWM) {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////// Need to write this (and run calibration test)
-void ForceToPWM(int* PWM, float* F_b_out){
+int* ForceToPWM(float* F_b_out){
   //float PWM[2] = {20, 80};
   //return PWM;
 //  float calibration1 = 1;
@@ -347,131 +346,96 @@ void ForceToPWM(int* PWM, float* F_b_out){
 //  F_b_out[1] = F_b_out[1]*calibration2;
 //  return F_b_out;
 
-  //float* PWM = malloc(sizeof(float)*2);
-  PWM[0] = 20;
-  PWM[1] = 80;
-  //return PWM
+  static int PWM[2] = {20, 80};
+  return PWM;
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////// 
-void MoveMotors(int* PWM){
+void MoveMotors(int PWM[]){
   //Serial.println("success");
   myservoF.write(10+PWM[0]);
   myservoB.write(170-PWM[1]);
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////////////////////// Could use more sophisticated method here. Need to do this for both wheels
-bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time, int analogPinPhoto){
-  int current_value = analogRead(analogPinPhoto);
-  delayMicroseconds(100);
-//  Serial.println(((unsigned int)Time - previous_time)*pow(10,-6));
-//Serial.println((unsigned int)Time);
-//Serial.println(previous_time);
-//  Serial.println(hole_count);
-//  Serial.println(current_value);
-  if(hole_count >= max_count){
-//    Serial.println("hello");
-    return true;
+////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------- RPS code here -------------------------------------------
+int* get_rps_data(unsigned int dt){
+  static int rps[NUM_POINTS*2];
+  for(int i=0;i<NUM_POINTS;i++){
+    rps[i] = analogRead(analogPinPhotoF);
+    rps[i+NUM_POINTS] = analogRead(analogPinPhotoB);
+    delayMicroseconds(dt);
   }
-  else if(current_value > magic_thresh && previous_value <= magic_thresh){
-//    Serial.println(current_value);
-    int window_value = analogRead(analogPinPhoto);
-    while(window_value < window_thresh){
-      window_value = analogRead(analogPinPhoto);
+  return rps;  
+}
+
+float* get_rps(){
+  // Constants
+  int i=0, j=NUM_POINTS;
+  int* rpsData = get_rps_data(50);
+  int count[6] = {0,0,BIG_NUMBER,0,0,BIG_NUMBER};
+  static float rps[2] = {.0,.0};
+  // Outer loop
+  while(i<NUM_POINTS-1 || j<NUM_POINTS-1){
+    // Front RPS part
+    // Rising edge: next point above threshold, current point below
+    if(rpsData[i+1] > magic_thresh && rpsData[i] <= magic_thresh){
+      // Count the peaks and record locations
+      ++count[0];
+      if(count[0]==1){
+        count[1] = i;
+      }
+      count[2] = i;
+      // value between thresholds as window values
+      int window_valueF = rpsData[i+1];
+      // Skip rest of the same peak
+      while(window_valueF < window_thresh){  
+        ++i;
+        if(i==NUM_POINTS-2){
+          return rps;
+        } 
+        window_valueF = rpsData[i+1];
+      }
     }
-      
-    hole_count++;
-//    Serial.println(hole_count);
-    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
+    ++i; // increment front counter
+    // Back RPS part
+    // Rising edge: next point above threshold, current point below
+    if(rpsData[j+1] > magic_thresh && rpsData[j] <= magic_thresh){
+      // Count the peaks and record locations
+      ++count[3];
+      if(count[3]==1){
+        count[4] = j;
+      }
+      count[5] = j;
+      // value between thresholds as window values
+      int window_valueB = rpsData[j+1];
+      // Skip rest of the same peak
+      while(window_valueB < window_thresh){  
+        ++j;
+        if(j==NUM_POINTS-2){
+          return rps;
+        } 
+        window_valueB = rpsData[j+1];
+      }
+    }
+    ++j; // increment front counter
   }
-  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
-//    Serial.println("yoyo");
-    return false;
-  } 
-  else{
-    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
+  // Calculate RPS. If only one peak, set speed to 0
+  if(count[0]==1){
+    rps[0]=0;
+  }else if(count[3]==1){
+    rps[1]=0;
+  }else{
+    rps[0]=16.0/((float)(count[2]-count[1])*pow(10,-6));
+    rps[1]=16.0/((float)(count[5]-count[4])*pow(10,-6));
   }
-  // add window threshold
-  // add delay?  
+  return rps;
 }
+//--------------------------------------------------------------------------------------
 
-double get_rps(int num_holes, int analogPinPhoto){
-  bool rps_flag = false;
-  unsigned int previous_time = (unsigned int)Time;
-  int hole_count = 0;
-  rps_flag = get_rps_flag(hole_count, num_holes, analogRead(analogPinPhoto), previous_time, analogPinPhoto);
-//  Serial.println(rps_flag);
-  if(rps_flag){
-    unsigned int current_time = (unsigned int)Time;
-    return (double)num_holes/((current_time-previous_time)*pow(10,-6)*16.0);
-  }
-  else{
-//    Serial.println("hello???");
-    return 0.0;
-  }
-}
-
-//void writeSD(outputData* data){
-//  file_t file;
-//  BufferedPrint<file_t, 64> bp;
-//
-//  //--------------------------------------------
-//  // Change the file name if necessary
-//  char fileName[13] = "Test0.txt";
-//  //--------------------------------------------
-//  
-//  if (!file.open(fileName, O_RDWR | O_CREAT | O_TRUNC)) {
-//      sd.errorHalt(&Serial, F("open failed"));
-//    }
-//  if (1) {
-//    bp.begin(&file);
-//  }
-//
-//  //-----------------------------------------------
-//  // Change this section if input data type changes
-//  //file.println(i);
-//
-//  for(int j=0; j<3000; j++){
-//        file.print(data[j].t);
-//        file.print(data[j].pot);
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].angle[i]);
-//        }
-//  for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].accel[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].spd[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].angle[i]);
-//        }
-//  for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].accel[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].spd[i]);
-//        }
-//        file.print(data[j].PWM[0]);
-//        file.print(data[j].PWM[1]);
-//        file.print(data[j].RPS[0]);
-//        file.print(data[j].RPS[1]);
-//}
-//  //-----------------------------------------------
-//  
-//  if (1) {
-//    bp.sync();
-//  }
-//  if (file.getWriteError()) {
-//    sd.errorHalt(&Serial, F("write failed"));
-//  }
-//  double s = file.fileSize();
-//  file.close();
-//}
-
-void writeSD(double* data){
+void writeSD(double data[]){
   file_t file;
   BufferedPrint<file_t, 64> bp;
 
@@ -576,25 +540,20 @@ void setup() {
 
 void loop() {
   // READ INPUTS
-  int p_i = ReadPot(potpin); // Read the input potentiometer position
+  int p_i = ReadPot(); // Read the input potentiometer position
   ReadAngle(mpuF, packetSizeF); // Read the gyroscope angle
 
   // PREVENTATIVE SYSTEM
-  float* F_b_out = (float*)malloc(sizeof(float)*2); // F_b_out[0] = F_b1_out, F_b_out[1] = F_b2_out
-  int* PWM = (int*)malloc(sizeof(int)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
-  
   float F_F_max = TheoreticalMaximumGroundFriction(mu_s,d_C1_COM,M,0,d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM);
-  RunNoSlipNoFlipAlgo(F_b_out,F_F_max,p_i_max,p_i,mu_s,d_C1_COM,M,ypr[1],d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM); 
-
-  ForceToPWM(PWM, F_b_out);
+  // F_b_out[0] = F_b1_out, F_b_out[1] = F_b2_out
+  float* F_b_out = RunNoSlipNoFlipAlgo(F_F_max,p_i_max,p_i,mu_s,d_C1_COM,M,ypr[1],d_C1_C2,SB1,R,r,I_A2,d_C2_COM,SB2,I_A1,d_A1_COM); 
+  // Convert to PWM
+  int* PWM = ForceToPWM(F_b_out); // PWM[0] = PWM_1, PWM[1] = PWM_2
   MoveMotors(PWM);
-  
-  free(F_b_out);
-  free(PWM);
 
   //////////////////////////////////////////////////////////////////////////////////////// Need to update this
   // REACTIVE SYSTEM
-  double* RPS = (double*)malloc(sizeof(double)*2);
+  float* rps = get_rps();
   
   // Infinite loop that only breaks with a significant change in potentiometer position
 //  ReadRPS(RPS);

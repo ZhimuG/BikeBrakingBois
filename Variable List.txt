@@ -1,3 +1,0 @@
-Servos:
-Front: Pin 2
-Back: Pin 3

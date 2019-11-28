@@ -1,0 +1,15 @@
+Servos:
+Front: Pin 2
+Back: Pin 3
+
+Photodiodes:
+Front:
+Back:
+
+Acccel/Gyro:
+Front:
+Back:
+
+Buzzer:
+
+Potentiometer:

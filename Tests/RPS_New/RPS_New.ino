@@ -10,8 +10,6 @@ int magic_thresh = 212;
 int window_thresh = 218;
 int analogPinPhotoB = 31;
 int analogPinPhotoF = 32;
-elapsedMicros Time;
-unsigned int max_time = 500; //[ms]
 
 int* get_rps_data(unsigned int dt){
   static int rps[NUM_POINTS*2];
