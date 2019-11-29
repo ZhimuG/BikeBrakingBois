@@ -169,12 +169,12 @@ void ReadAngle(MPU6050 mpu, uint16_t packetSize){
 
 //--------------------------------- Read Linear Speed ----------------------------------------------------
 void ReadLinSpeed(MPU6050 mpu, uint16_t packetSize){
-  unsigned int prev = (unsigned int)Time;
+  unsigned long prev = (unsigned long)Time;
   ReadLinAccel(mpu, packetSize);
-  unsigned int curr = (unsigned int)Time;
-  linSpeed.x += linAccel.x*1.0*(curr-prev)*pow(10,-6);
-    linSpeed.y += linAccel.y*1.0*(curr-prev)*pow(10,-6);
-    linSpeed.z += linAccel.z*1.0*(curr-prev)*pow(10,-6);
+  unsigned long curr = (unsigned long)Time;
+  linSpeed.x += linAccel.x*(double)(curr-prev)*pow(10,-6);
+  linSpeed.y += linAccel.y*(double)(curr-prev)*pow(10,-6);
+  linSpeed.z += linAccel.z*(double)(curr-prev)*pow(10,-6);
 }
 
 //------------------------- Buzzer Functions -------------------------------------------------------------
@@ -526,16 +526,17 @@ void setup_mpu(){
     dmpReady = true;
     packetSizeF = mpuF.dmpGetFIFOPacketSize();
     packetSizeB = mpuB.dmpGetFIFOPacketSize();
+	make_buzz(14, 500, 1000);
   }else{return;}
 }
 //=====================================================================================================
 
 void setup() {
   setup_motors();
+  buzz_setup(14);
   //Serial.begin(9600);
   setup_SD();
   setup_mpu();
-  buzz_setup(14);
 }
 
 void loop() {

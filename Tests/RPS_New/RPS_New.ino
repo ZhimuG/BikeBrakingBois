@@ -1,7 +1,7 @@
 #include <PWMServo.h>
 
 #define NUM_POINTS 2000
-#define BIG_NUMBER 1000000
+#define BIG_NUMBER 1000000000
 
 PWMServo myservoF;
 PWMServo myservoB;
@@ -11,7 +11,7 @@ int window_thresh = 218;
 int analogPinPhotoB = 31;
 int analogPinPhotoF = 32;
 
-int* get_rps_data(unsigned int dt){
+int* get_rps_data(int dt){
   static int rps[NUM_POINTS*2];
   for(int i=0;i<NUM_POINTS;i++){
     rps[i] = analogRead(analogPinPhotoF);
@@ -26,9 +26,9 @@ int* get_rps_data(unsigned int dt){
 
 float* get_rps(){
   // Constants
-  int i=0, j=NUM_POINTS;
-  int* rpsData = get_rps_data(50);
-  int count[6] = {0,0,BIG_NUMBER,0,0,BIG_NUMBER};
+  int i=0, j=NUM_POINTS, dt=50;
+  int* rpsData = get_rps_data(dt);
+  unsigned int count[6] = {0,0,BIG_NUMBER,0,0,BIG_NUMBER};
   static float rps[2] = {.0,.0};
   // Outer loop
   while(i<NUM_POINTS-1 || j<NUM_POINTS-1){
@@ -84,13 +84,13 @@ float* get_rps(){
     Serial.println(count[5]-count[4]);
   }
   // Calculate RPS. If only one peak, set speed to 0
-  if(count[0]==1 || count[0]==0){
+  if(count[0]<2){
     rps[0]=0;
-  }else if(count[3]==1 || count[3]==0){
+  }else if(count[3]<2){
     rps[1]=0;
   }else{
-    rps[0]=16.0/((float)(count[2]-count[1])*pow(10,-6));
-    rps[1]=16.0/((float)(count[5]-count[4])*pow(10,-6));
+    rps[0]=16.0/((float)(count[2]-count[1])*(float)dt*pow(10,-6));
+    rps[1]=16.0/((float)(count[5]-count[4])*(float)dt*pow(10,-6));
   }
   return rps;
 }
