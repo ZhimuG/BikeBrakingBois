@@ -12,7 +12,7 @@
 //double current_rpm;
 //elapsedMillis time_btw_max;
 
-int analogPinPhoto = 1;
+int analogPinPhoto = 31;
 double threshold1 = 0.1;
 //double threshold2 = 0.1;
 double current_value = 0;
@@ -31,7 +31,7 @@ unsigned int current_time;
 double current_rps = 0;
 double angle_btw_holes = 3.14159/3.0;
 int i = 0;
-double threshold_fall = 300.0;
+double threshold_fall = 250.0;
 
 
 void setup() {
@@ -42,6 +42,7 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   current_value = analogRead(analogPinPhoto);
+
 //  Serial.println(current_value);
   if(previous_value > threshold_fall && current_value < threshold_fall){
 //    current_time = micros();
@@ -54,7 +55,7 @@ void loop() {
     Serial.println(current_rps);
   }
   previous_value = current_value;
-  delayMicroseconds(300);
+  delayMicroseconds(100);
   
 //
 ////  if(abs((previous_value - current_value) / previous_value) < threshold1){
