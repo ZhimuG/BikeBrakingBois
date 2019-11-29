@@ -3,13 +3,13 @@
 % slipping/flipping on flat ground. This value is purposely underestimated.
 %F_F_max = 1000; %[N] 
 % Potentiometer value of a "firm clamp" defined to cause F_F_max to be exerted. 
-p_i_max = 950; % (out of 1024)
+p_i_max = 150; % (out of 1024)
 % Input potentiometer value
-p_i = 500; %[V] % INPUT
+p_i = 100; %[V] % INPUT
 % Reasonable (underestimated) value of the coefficient on static friction
 mu_s = 0.4; %[] % Similar to tire rubber on grass (underestimated for normal cycling conditions)
 % x,y,z components of distance from C1 to COM
-d_C1_COM = [0.5,1,0]; %[m]
+d_C1_COM = [0.69,1,0]; %[m]
 % Mass of bike and rider 
 M = 80; %[kg]
 % Angle of incline % INPUT
@@ -24,14 +24,14 @@ R = 0.66/2; %[m]
 r = 0.16/2; %[m]
 % Moment of inertia of the back wheel about A2 (to be determined via
 % experiment)
-I_A2 = 0.2^2*2; %[kg*m^2]
+I_A2 = 0.9*R^2; %[kg*m^2]
 % x,y,z components of distance from C2 to COM
 d_C2_COM = [0.7, 1, 0]; %[m]
 % Safety Buffer 2 (to be determined via tuning)
 SB2 = 0; %[]
 % Moment of inertia of the front wheel about A2 (to be determined via
 % experiment)
-I_A1 = 0.2^2*2; %[kg*m^2]
+I_A1 = 0.9*R^2; %[kg*m^2]
 % x,y,z components of distance from A1 to COM. Shorter than d_C1_COM as
 % we've purposely assumed the center of mass is futher forward since this
 % is only used for the flipping condition
