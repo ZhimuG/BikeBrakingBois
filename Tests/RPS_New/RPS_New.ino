@@ -18,9 +18,9 @@ int* get_rps_data(unsigned int dt){
     rps[i+NUM_POINTS] = analogRead(analogPinPhotoB);
     delayMicroseconds(dt);
   }
-  if(debug){
-    Serial.println((sizeof(rps) / sizeof(rps[0])));
-  }
+//  if(debug){
+//    Serial.println((sizeof(rps) / sizeof(rps[0])));
+//  }
   return rps;  
 }
 
@@ -76,17 +76,17 @@ float* get_rps(){
     ++j; // increment front counter
   }
   if(debug){
-    Serial.print(count[0]);
-    Serial.print("\t");
-    Serial.println(count[2]-count[1]);
+//    Serial.print(count[0]);
+//    Serial.print("\t");
+//    Serial.println(count[2]-count[1]);
     Serial.print(count[3]);
     Serial.print("\t");
     Serial.println(count[5]-count[4]);
   }
   // Calculate RPS. If only one peak, set speed to 0
-  if(count[0]==1){
+  if(count[0]==1 || count[0]==0){
     rps[0]=0;
-  }else if(count[3]==1){
+  }else if(count[3]==1 || count[3]==0){
     rps[1]=0;
   }else{
     rps[0]=16.0/((float)(count[2]-count[1])*pow(10,-6));
@@ -109,10 +109,10 @@ void loop() {
   float* rps;
   rps = get_rps();
   if(debug){
-    Serial.println((sizeof(rps) / sizeof(rps[0])));
-    Serial.print(rps[0]);
-    Serial.print(",");
-    Serial.print(rps[1]);
-    Serial.println();
+//    Serial.println((sizeof(rps) / sizeof(rps[0])));
+//    Serial.print(rps[0]);
+//    Serial.print(",");
+//    Serial.println(rps[1]);
+//    Serial.println();
   }
 }

@@ -1,6 +1,6 @@
 Servos:
-Front: Pin 2
-Back: Pin 3
+Front: Pin 3
+Back: Pin 2
 
 Photodiodes:
 Front:
