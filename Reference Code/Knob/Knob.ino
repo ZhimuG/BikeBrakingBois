@@ -137,10 +137,10 @@ void setup() {
 
 void loop() {
   val = ReadPot(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
-  Serial.println(val);
+//  Serial.println(val);
 //  val = map(val, 0, 1023, 0, 179);     // scale it to use it with the servo (value between 0 and 180)
   MoveMotors(val);
-//  Serial.println(analogRead(31));
+  Serial.println(analogRead(31));
 //  writeSD(analogRead(31));
   delay(15);                           // waits for the servo to get there
 }

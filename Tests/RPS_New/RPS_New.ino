@@ -182,14 +182,6 @@ float* get_rps(){
 //        writeSD_int(count[1]);
       }
       count[2] = i;
-//      writeSD_int(count[2]);
-//      while(window_valueF > window_low){
-//        ++i;
-//        if(i==NUM_POINTS-2){
-//          return rps;
-//        } 
-//        window_valueF = rpsData[i+1];
-//      }
     }
     ++i; // increment front counter
   }
