@@ -7,18 +7,17 @@
  http://arduino.cc/en/Tutorial/Sweep
 */ 
 
-#include <Servo.h> 
- 
-Servo myservoF;  // create servo object to control a servo 
-                // twelve servo objects can be created on most boards
-Servo myservoB;
+#include <PWMServo.h>
+
+PWMServo myservoF;  // create servo object to control a servo
+PWMServo myservoB;  // create servo object to control a servo
  
 int pos = 0;    // variable to store the servo position 
  
 void setup() 
 { 
-  myservoF.attach(9);  // attaches the servo on pin 9 to the servo object
-  myservoB.attach(10);
+  myservoF.attach(2);  // attaches the servo on pin 9 to the servo object
+  myservoB.attach(3);
   myservoB.write(10);
   myservoF.write(170);
 } 
@@ -31,7 +30,7 @@ void loop()
     myservoB.write(pos);
     delay(15);                       // waits 15ms for the servo to reach the position 
   } 
-  for(pos = 180; pos>=0; pos-=1)     // goes from 180 degrees to 0 degrees 
+  for(pos = 170; pos>=0; pos-=1)     // goes from 180 degrees to 0 degrees 
   {                                
     myservoF.write(170-pos);              // tell servo to go to position in variable 'pos' 
     myservoB.write(pos);

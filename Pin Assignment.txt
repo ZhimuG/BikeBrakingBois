@@ -10,6 +10,6 @@ Acccel/Gyro:
 Front:
 Back:
 
-Buzzer:
+Buzzer: 14
 
-Potentiometer:
+Potentiometer: A3
