@@ -1,26 +1,19 @@
+#include <PWMServo.h>
 #include "SdFat.h"
 #include "BufferedPrint.h"
-#include <PWMServo.h>
 
 PWMServo myservoF;  // create servo object to control a servo
-PWMServo myservoB;  // create servo object to control a servo
+PWMServo myservoB;
 
 #define NUM_POINTS 3000
 #define BIG_NUMBER 1000000000
+#define Pi 3.1415926
 
-// For SD write:
+elapsedMicros Time;
+
 // SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
 #define SD_FAT_TYPE 0
-/*
-  Change the value of SD_CS_PIN if you are using SPI and
-  your hardware does not use the default value, SS.
-  Common values are:
-  Arduino Ethernet shield: pin 4
-  Sparkfun SD shield: pin 8
-  Adafruit SD shields and modules: pin 10
-*/
-
 // SDCARD_SS_PIN is defined for the built-in SD on some boards.
 #ifndef SDCARD_SS_PIN
 const uint8_t SD_CS_PIN = SS;
@@ -54,8 +47,7 @@ typedef FsFile file_t;
 // number of lines to print
 const uint16_t N_PRINT = 20000;
 
-const int potpin = A3;  // analog pin used to connect the potentiometer
-int val;    // variable to read the value from the analog pin
+const int potpin = A3;
 
 // For RPS
 bool debug = true;
@@ -63,8 +55,6 @@ int magic_thresh = 212;
 int window_high = 218;
 int analogPinPhotoB = 31;
 int analogPinPhotoF = 32;
-
-int loopCount = 0;
 
 int* get_rps_data(int dt){
   static int rps[NUM_POINTS*2];
@@ -143,26 +133,6 @@ float* get_rps(){
   return rps;
 }
 
-void buzz_setup(int pwmpin){
-  pinMode(pwmpin, OUTPUT);  
-  digitalWrite(pwmpin, LOW);
-}
-
-void setup() {
-  // put your setup code here, to run once:
-  myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
-  //  Serial.begin(9600);
-  myservoB.write(7);
-  myservoF.write(170);
-  if (!sd.begin(SD_CONFIG)) {
-    sd.initErrorHalt(&Serial);
-  }
-  loopCount = 0;
-  buzz_setup(14);
-  make_buzz(14, 500, 1000);
-}
-
 void make_buzz(int pwmpin, int Frequency, int elapsedTime){
   double dTime = 1000 / (Frequency*2);
   int count = elapsedTime/dTime;
@@ -173,12 +143,6 @@ void make_buzz(int pwmpin, int Frequency, int elapsedTime){
     delay(dTime);
   }
 }
-
-void buzz_stop(int pwmpin){
-  digitalWrite(pwmpin, LOW);
-}
-
-
 
 void MoveMotors(int* PWM){
   //Serial.println("success");
@@ -195,109 +159,95 @@ int ReadPot(const int potpin){
   }
   val = val/5;
   int rounder = 10;
-   if(val>180){
-    val=220;
+   if(val>100){
+    val=120;
   }
-  val = map(val/rounder, 0, 22, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
+  val = map(val/rounder, 0, 12, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
   return val;
 }
 
+float ReadLinSpeed(float wheelRadius){
+  float* rps = get_rps();
+  return (rps[0]*wheelRadius*Pi);
+}
 
-void writeSD_cal(float* RPS_arr, float dt, int N, int PWM){
-  file_t file;
-  BufferedPrint<file_t, 64> bp;
+void absAlgorithm(int PWM[]) {
+    // save the original PWM values
+    double PWM1 = PWM[0];
+    double PWM2 = PWM[1];
+    float wheelRadius = 0.6985; //[m]
+    // find the current wheel rotation wheed and linear speed of the bike  
+    float* rps = get_rps();
+    float wheelRotationSpeed = (rps[0]>rps[1])? rps[1] : rps[0];
+    float linSpeed = ReadLinSpeed(wheelRadius);
+    double slipRatio = 1 - (wheelRadius * wheelRotationSpeed * Pi / linSpeed);
+    // not slipping at all
+    if(slipRatio < 0.19)
+      return;
+    // slipping, run the algorithm until stop moving or stop braking
+    while((PWM[0] > 0 || PWM[1] > 0) && linSpeed > 0) {
+        // set braking force to zero until slipRatio < 0.19
+        PWM[0] = 0;
+        PWM[1] = 0;
+        MoveMotors(PWM);
+        unsigned long previous_time = (unsigned long)Time;
+        while(slipRatio > 0.19) {
+          unsigned long current_time1 = (unsigned long)Time;
+          if((current_time1-previous_time) > 100) {
+              float* rps = get_rps();
+              float wheelRotationSpeed = (rps[0]>rps[1])? rps[1] : rps[0];
+              float linSpeed = ReadLinSpeed(wheelRadius);
+              slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed);
+          }
+        }
+        // start braking at original force again until slipRatio > 0.19
+        PWM[0] = PWM1;
+        PWM[1] = PWM2;
+        MoveMotors(PWM);
+        previous_time = (unsigned long)Time;
+        while(slipRatio < 0.19) {
+          unsigned long current_time2 = (unsigned long)Time;
+          if((current_time2-previous_time) > 100) {
+              float* rps = get_rps();
+              float wheelRotationSpeed = (rps[0]>rps[1])? rps[1] : rps[0];
+              float linSpeed = ReadLinSpeed(wheelRadius);
+              slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed);
+          }
+        }   
+      }  
+    return;
+}
 
-  //--------------------------------------------
-  // Change the file name if necessary
-  char fileName[23] = "Calibration_wheel0.txt";
-  //char fileName[10] = "TestPot.txt"; //filename;
-  
-  //--------------------------------------------
-  
-  if (!file.open(fileName, O_RDWR | O_APPEND)) {
-      sd.errorHalt(&Serial, F("open failed"));
-    }
-  if (1) {
-    bp.begin(&file);
-  }
+void setup_motors(){
+  myservoB.attach(3);
+  myservoF.attach(2);
+  myservoB.write(7);
+  myservoF.write(170);
+}
 
-  //-----------------------------------------------
-  // Change this section if input data type changes
-//  int data_arr_len = 6;
-  file.print("Datapoint ");
-  file.print(loopCount);
-  file.println();
-  file.print(PWM);
-  file.print(", ");
-  file.print(dt);
-  file.print(", ");
-  file.print(N);
-  file.print(", ");
-  for(int i=0; i<N; i++){
-    file.print(RPS_arr[i]);
-    file.print(" ");
+void buzz_setup(int pwmpin){
+  pinMode(pwmpin, OUTPUT);  
+  digitalWrite(pwmpin, LOW);
+}
+
+void setup_SD(){
+  if (!sd.begin(SD_CONFIG)) {
+    sd.initErrorHalt(&Serial);
   }
-  file.println();
-  
-  //-----------------------------------------------
-  
-  if (1) {
-    bp.sync();
-  }
-  if (file.getWriteError()) {
-    sd.errorHalt(&Serial, F("write failed"));
-  }
-  double s = file.fileSize();
-  file.close();
 }
 
 
+void setup() {
+  // put your setup code here, to run once:
+  setup_motors();
+  buzz_setup(14);
+//  setup_SD();
+}
+
 void loop() {
-  if(loopCount > 30){
-    return;
-  }
-  buzz_stop(14);
-  
-  // Step 1: Reset motor positions to zero
-  loopCount++;
-  int stepSize = 10;
-  int PWM[2] = {170, 10}; // PWM[0] = PWM_1, PWM[1] = PWM_2
+  // put your main code here, to run repeatedly:
+  int val = ReadPot(potpin);
+  int PWM[2] = {170-val, val+7};
   MoveMotors(PWM);
-  // Step 2: Choose PWM 
-  //PWM[0] = 100;
-  if(loopCount > 4 && loopCount<=9){
-    stepSize = 4;
-    PWM[1] = 40+stepSize*(loopCount-4);
-  }
-  else if(loopCount > 9){
-    stepSize = 2;
-    PWM[1] = 60+stepSize*(loopCount-9);
-  }else{
-    PWM[1] = stepSize*(loopCount);
-  }
-  // Step 3: Spin wheel and start the program 
-  // monitor the pot in a while loop to trigger program
-  int pot = ReadPot(potpin);
-  int thresh = 80;
-  while(pot>thresh){
-        pot = ReadPot(potpin);
-        delay(1);
-      }
-  // Step 4: Apply brake at PWM for N measurements
-//  unsigned int prev = (unsigned int)Time;
-  int N = 100;
-  float dt = 10; //[ms]
-  float RPS_arr[N];
-  float* RPS;
-  MoveMotors(PWM);
-  for(int i=0;i<N;i++){
-    // Step 5: read the RPS every dt RPS_arr[i]
-    RPS = get_rps();
-    RPS_arr[i] = RPS[1];
-    delay(dt);
-  }
-  // Step 6: Write RPS_arr, dt, N
-  // can just write this to the serial monitor
-  writeSD_cal(RPS_arr, dt, N, PWM[1]);
-  make_buzz(14, 500, 1000);
+  absAlgorithm(PWM);
 }

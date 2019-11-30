@@ -220,8 +220,8 @@ void ReadAngles(MPU6050 mpu, uint16_t packetSize){
 			fifoCount -= packetSize;
 		}
 	    mpu.dmpGetQuaternion(&q, fifoBuffer);
-        mpu.dmpGetGravity(&gravity, &q);
-        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 	}
 }
 //-----------------------------------------------------------------
@@ -288,41 +288,21 @@ void ReadAngles(MPU6050 mpu, uint16_t packetSize){
 //-----------------------------------------------------------------
 //------------------- Set Up Function -----------------------------
 void setup(){
-  myservoF.attach(2);         // attaches the servo on pin 9 to the servo
- myservoB.attach(3);
- myservoB.write(10);
- myservoF.write(170);
 	Wire.begin();
-	Serial.begin(9600);
 	mpuF.initialize();
-	mpuB.initialize();
-	Wire.setSDA(18);
-	Wire.setSCL(19);
-	Wire.setSDA(38);
-	Wire.setSCL(37);
 	mpuF.setXGyroOffset(0);
-    mpuF.setYGyroOffset(0);
-    mpuF.setZGyroOffset(0);
-    mpuF.setZAccelOffset(1688);
-	mpuB.setXGyroOffset(0);
-    mpuB.setYGyroOffset(0);
-    mpuB.setZGyroOffset(0);
-    mpuB.setZAccelOffset(1688);
-    devStatusF = mpuF.dmpInitialize();
-    devStatusB = mpuB.dmpInitialize();
-    //myservoF.attach(2)
+  mpuF.setYGyroOffset(0);
+  mpuF.setZGyroOffset(0);
+  mpuF.setZAccelOffset(1688);
+  devStatusF = mpuF.dmpInitialize();
+  //myservoF.attach(2)
 	if (devStatusF == 0 && devStatusB == 0) {
-        mpuF.CalibrateAccel(6);
-        mpuF.CalibrateGyro(6);
-        mpuF.PrintActiveOffsets();
-		mpuB.CalibrateAccel(6);
-        mpuB.CalibrateGyro(6);
-    mpuB.PrintActiveOffsets();
+    mpuF.CalibrateAccel(6);
+    mpuF.CalibrateGyro(6);
+    mpuF.PrintActiveOffsets();
     mpuF.setDMPEnabled(true);
-		mpuB.setDMPEnabled(true);
     dmpReady = true;
     packetSizeF = mpuF.dmpGetFIFOPacketSize();
-		packetSizeB = mpuB.dmpGetFIFOPacketSize();
     }else{return;}
 }
 //-----------------------------------------------------------------
@@ -422,11 +402,11 @@ void setup() {
 // ================================================================
 
 void loop() {
-	ReadLinAccel(mpuF, packetSizeF);
-   Serial.print("acceleration\t");
-        Serial.print(linAccel.x);
-        Serial.print("\t");
-        Serial.print(linAccel.y);
-        Serial.print("\t");
-        Serial.println(linAccel.z);
+	 ReadAngles(mpuF, packetSizeF);
+   Serial.print("angles\t");
+   Serial.print(180*atan(ypr[0]));
+   Serial.print("\t");
+   Serial.print(180*atan(ypr[1]));
+   Serial.print("\t");
+   Serial.println(180*atan(ypr[2]));
 }
