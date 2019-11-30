@@ -133,7 +133,7 @@ float* get_rps(){
   return rps;
 }
 
-void make_buzz(int pwmpin, int Frequency, int elapsedTime){
+void make_buzz(int pwmpin, int Frequency, int elapsedTime) {
   double dTime = 1000 / (Frequency*2);
   int count = elapsedTime/dTime;
   for(int i=0; i<count; i++){
@@ -146,7 +146,7 @@ void make_buzz(int pwmpin, int Frequency, int elapsedTime){
 
 void MoveMotors(int PWM){
   //Serial.println("success");
-  myservoF.write(170);
+  myservoF.write(PWM);
   myservoB.write(180-PWM);
 }
 
@@ -166,75 +166,93 @@ int val=0;
   return val;
 }
 
+float ReadLinSpeed(float wheelRadius){
+  float* rps = get_rps();
+  return (rps[0]*wheelRadius*Pi);
+}
+
 void absAlgorithm(int PWM[]) {
-    // save the original PWM values
+    // save the original PWM values and define wheel radius
     double PWM1 = PWM[0];
     double PWM2 = PWM[1];
-    float wheelRadius = 0.6985 / 2; //[m]
-    // find the current wheel rotation wheed and linear speed of the bike  
+    float wheelRadius = 0.6985 / 2;
+    // calculate initial slip ratio
     float* rps = get_rps();
-    // 0 index is the front brake, 1 index is the back brake
     float wheelRotationSpeed = rps[1];
     float linSpeed = rps[0] * wheelRadius*2*Pi;
     double slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
-    if(linSpeed > 18/3.6 && linSpeed < 22/3.6){
-      make_buzz(14, 500, 200);
-    }
-    writeSD(wheelRotationSpeed, PWM, linSpeed, slipRatio); 
-    // not slipping at all
-    if(slipRatio < 0.19 || linSpeed == 0 || PWM[1] > 160){
+    if(linSpeed > 20/3.6)
+      make_buzz(14, 500, 400);
+    // not slipping, return 
+    if(slipRatio < 0.19 || linSpeed != 0)
       return;
-    }
     // slipping, run the algorithm until stop moving or stop braking
-    while((PWM[1] < 160) && linSpeed != 0 && slipRatio>0.19) {
-        // set braking force to zero until slipRatio < 0.19
+    while((PWM[0] < 165 || PWM[1] < 165) && linSpeed != 0) {
+      // calculate slip ratio
+      float* rps = get_rps();
+      float  wheelRotationSpeed = rps[1];
+      float  linSpeed = rps[0] * wheelRadius * 2 * Pi;
+      slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
+      // release brakes if we are slipping
+      if(slipRatio > 0.19) {
         PWM[0] = 170;
         PWM[1] = 170;
         MoveMotors(PWM[1]);
-        delay(85);
+        delay(1);
+      }
+      // apply brakes once slipping has stopped
+      else {
         PWM[0] = PWM1;
         PWM[1] = PWM2;
         MoveMotors(PWM[1]);
-        float* rps = get_rps();
-        float wheelRotationSpeed = rps[1];
-        float linSpeed = rps[0] * wheelRadius*2*Pi;
-        slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
-        int val = ReadPot(potpin);
-        PWM[1] = val;
-        if(linSpeed > 18/3.6 && linSpeed < 22/3.6){
-          make_buzz(14, 500, 200);
-        }
-//        unsigned long previous_time = (unsigned long)Time;
-//        while(slipRatio > 0.19) {
-////          unsigned long current_time1 = (unsigned long)Time;
-////          if((current_time1-previous_time) > 100) {
-//              float* rps = get_rps();
-//              float wheelRotationSpeed = rps[1];
-//              float linSpeed = rps[0] * wheelRadius*2*Pi;
-//              slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
-//              writeSD(wheelRotationSpeed, PWM, linSpeed, slipRatio);  
-////          }
-//        }
-//        // start braking at original force again until slipRatio > 0.19
-//        PWM[0] = PWM1;
-//        PWM[1] = PWM2;
-//        MoveMotors(PWM[1]);
-////        previous_time = (unsigned long)Time;
-//        while(slipRatio < 0.19) {
-////          unsigned long current_time2 = (unsigned long)Time;
-////          if((current_time2-previous_time) > 100) {
-//              float* rps = get_rps();
-//              float wheelRotationSpeed = rps[1];
-//              float linSpeed = rps[0] * wheelRadius*2*Pi;
-//              slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
-//              writeSD(wheelRotationSpeed, PWM, linSpeed, slipRatio); 
-////          }
-//        }   
-      }  
+      }
+    }
     return;
 }
 
-void writeSD(float wheelRotationSpeed, int* PWM, float linSpeed, float slipRatio) {
+void writeSD(float wheelRotationSpeed, float dt, int* PWM, float linSpeed, float slipRatio) {
+  file_t file;
+  BufferedPrint<file_t, 64> bp;
+  //--------------------------------------------
+  // Change the file name if necessary
+  char fileName[23] = "Calibration_wheel0.txt";
+  //char fileName[10] = "TestPot.txt"; //filename;
+  //--------------------------------------------
+  if (!file.open(fileName, O_RDWR | O_APPEND)) {
+      sd.errorHalt(&Serial, F("open failed"));
+    }
+  if (1) {
+    bp.begin(&file);
+  }
+  //-----------------------------------------------
+  // Change this section if input data type changes
+  //  int data_arr_len = 6;
+  file.print("Datapoint ");
+  file.println();
+  file.print(dt);
+  file.print(", ");
+  file.print(PWM[0]);
+  file.print(", ");
+  file.print(PWM[1]);
+  file.print(", ");
+  file.print(linSpeed);
+  file.print(", ");
+  file.print(wheelRotationSpeed);
+  file.print(", ");
+  file.print(slipRatio);  
+  file.println();
+  //-----------------------------------------------
+  if (1) {
+    bp.sync();
+  }
+  if (file.getWriteError()) {
+    sd.errorHalt(&Serial, F("write failed"));
+  }
+  double s = file.fileSize();
+  file.close();
+}
+
+void writeSD2(float wheelRotationSpeed, int* PWM, float linSpeed, float slipRatio) {
   file_t file;
   BufferedPrint<file_t, 64> bp;
   //--------------------------------------------
@@ -294,7 +312,6 @@ void setup_SD(){
   }
 }
 
-
 void setup() {
   // put your setup code here, to run once:
   setup_motors();
@@ -303,10 +320,8 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // read potentiometer and brake as normal
   int val = ReadPot(potpin);
-//  Serial.println(val);
-  int PWM[2] = {170, val};
+  int PWM[2] = {val, val};
   MoveMotors(val);
-  absAlgorithm(PWM);
 }

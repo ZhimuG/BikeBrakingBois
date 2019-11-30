@@ -179,30 +179,40 @@ void antiFlipping(int PWM){
     pitch += ypr[1]*2;
   }
   pitch /= 10;
-  if(abs(pitch) <= 0.1){
+  Serial.println(pitch);
+  if((pitch) > -0.0){
     return;
   }
   // if the angle is ever larger than 0.1 we are flipping
-  while(PWM<165 && linSpeed!=0){
-    MoveMotors(10);
-    delay(10);
-    while(abs(pitch) > 0.1){
-      for (int i=0; i<10; i++){
-        ReadAngle(mpu, packetSizeF);
-        pitch += ypr[1]*2;
-      }
-      pitch /= 10;
-      linSpeed = getLinSpeed(wheelRadius);
-    }
+  while(PWM<165 && (pitch) <= -0.0){
+    MoveMotors(170);
+    delay(300);
     MoveMotors(prevPWM);
-    while(abs(pitch) <= 0.1){
-      for (int i=0; i<10; i++){
-        ReadAngle(mpu, packetSizeF);
-        pitch += ypr[1]*2;
-      }
-      pitch /= 10;
-      linSpeed = getLinSpeed(wheelRadius);
+    for (int i=0; i<5; i++){
+      ReadAngle(mpu, packetSizeF);
+      pitch += ypr[1]*3;
     }
+    pitch /= 5;
+//    linSpeed = getLinSpeed(wheelRadius);
+    PWM = ReadPot(potpin);
+    Serial.println(pitch);
+//    while(abs(pitch) > 0.1){
+//      for (int i=0; i<10; i++){
+//        ReadAngle(mpu, packetSizeF);
+//        pitch += ypr[1]*2;
+//      }
+//      pitch /= 10;
+//      linSpeed = getLinSpeed(wheelRadius);
+//    }
+//    MoveMotors(prevPWM);
+//    while(abs(pitch) <= 0.1){
+//      for (int i=0; i<10; i++){
+//        ReadAngle(mpu, packetSizeF);
+//        pitch += ypr[1]*2;
+//      }
+//      pitch /= 10;
+//      linSpeed = getLinSpeed(wheelRadius);
+//    }
   }
   return;
 }
