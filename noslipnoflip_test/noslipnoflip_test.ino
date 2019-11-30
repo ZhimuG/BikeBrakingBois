@@ -17,9 +17,10 @@ MPU6050 mpuF;
 MPU6050 mpuB;
 
 //----------------------------------------------- Constants ---------------------------------------------------
+bool debug = true;
 //------------------------------------------ For RunNoSlipNoFlipAlgo ------------------------------------------
 float g = 9.81; //[m/s^2]
-int p_i_max = 150; // Define the potentiometer position corresponding to a maximum braking force [10 170]
+int p_i_max = 200; // Define the potentiometer position corresponding to a maximum braking force [10 170]
 float mu_s = 0.4; // Similar to tire rubber on grass (underestimated for normal cycling conditions)
 float d_C1_COM[3] = {0.69, 1, 0}; //[m] x,y,z components of distance from C1 to COM
 float d_C1_C2[3] = {1.12, 0, 0}; //[m] x,y,z components of distance from C1 to C2
@@ -122,7 +123,6 @@ int ReadPot(const int potpin){
 //  Serial.println(val);
 //  delay(20);
   val = map(val, 0, 22, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
-  val = map(val, 25, 140, 140, 25);
   return val;
 }
 
@@ -248,11 +248,16 @@ void RunNoSlipNoFlipAlgo(float* F_b_out, float F_F_max,int p_i_max,int p_i, floa
     // Step 6:
     // See value of d_A1_COM, it is purposely adjusted forwards
     float F_F1_NO = MaximumGroundFrictionNoseOver(M, theta, d_A1_COM);
+//    Serial.println(F_F1_NO);
+//    Serial.println(theta);
+//    F_F1_NO = F_F1_NO - theta*1000;
+//    Serial.println(F_F1_NO);
     
     // Step 7:
     //d_C2_COM[0] = d_C2_COM[0] - 0.2; // Adjust COM backwards
     float F_F1_Smax = MaximumGroundFriction(mu_s,d_C2_COM,M,theta,d_C1_C2);
-
+//    F_F1_Smax = F_F1_Smax + theta*1000;
+    
     // Step 8:
     float F_F1_max = min(F_F1_NO,F_F1_Smax);
     float leftover2 = leftover1 - (F_F1_max - SB2);
@@ -289,189 +294,12 @@ float TheoreticalMaximumGroundFriction(float mu_s,float* d_C1_COM,float M,float 
   return F_F_max;
 }
 
-//----------------------------------------- ABS Algorithm ----------------------------------------------------------
-void absAlgorithm(int* PWM) {
-    // save the original PWM values
-    double PWM1 = PWM[0];
-    double PWM2 = PWM[1];
-    // find the current wheel rotation wheed and linear speed of the bike  
-    double wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-    double wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-    double wheelRotationSpeed = (wheelRotationSpeedF>wheelRotationSpeedB)? wheelRotationSpeedB : wheelRotationSpeedF;
-    ReadLinSpeed(mpuF, packetSizeF);
-    double slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
-    // not slipping at all
-    if(slipRatio < 0.19)
-      return;
-    // slipping, run the algorithm until stop moving or stop braking
-    while((PWM[0] > 0 || PWM[1] > 0) && linSpeed.x > 0) {
-        // set braking force to zero until slipRatio < 0.19
-        PWM[0] = 0;
-        PWM[1] = 0;
-        MoveMotors(PWM);
-        unsigned long previous_time = (unsigned long)Time;
-        while(slipRatio > 0.19) {
-          unsigned long current_time1 = (unsigned long)Time;
-          if((current_time1-previous_time) > 100) {
-              float wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-              float wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-              wheelRotationSpeed = wheelRotationSpeedF > wheelRotationSpeedB ? wheelRotationSpeedB : wheelRotationSpeedF;
-              ReadLinSpeed(mpuF, packetSizeF);
-              slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
-          }
-        }
-        // start braking at original force again until slipRatio > 0.19
-        PWM[0] = PWM1;
-        PWM[1] = PWM2;
-        MoveMotors(PWM);
-        previous_time = (unsigned long)Time;
-        while(slipRatio < 0.19) {
-          unsigned long current_time2 = (unsigned long)Time;
-          if((current_time2-previous_time) > 100) {
-              float wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-              float wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-              wheelRotationSpeed = wheelRotationSpeedF > wheelRotationSpeedB ? wheelRotationSpeedB : wheelRotationSpeedF;
-              ReadLinSpeed(mpuF, packetSizeF);
-              slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
-          }
-        }   
-      }  
-    return;
-}
-
-//////////////////////////////////////////////////////////////////////////////////////// Need to write this (and run calibration test)
-void ForceToPWM(int* PWM, float* F_b_out){
-  //float PWM[2] = {20, 80};
-  //return PWM;
-//  float calibration1 = 1;
-//  float calibration2 = 1;
-//  F_b_out[0] = F_b_out[0]*calibration1;
-//  F_b_out[1] = F_b_out[1]*calibration2;
-//  return F_b_out;
-
-  //float* PWM = malloc(sizeof(float)*2);
-  PWM[0] = 20;
-  PWM[1] = 80;
-  //return PWM
-}
-////////////////////////////////////////////////////////////////////////////////////////
-
 //////////////////////////////////////////////////////////////////////////////////////// 
 void MoveMotors(int* PWM){
   //Serial.println("success");
-  myservoF.write(10+PWM[0]);
-  myservoB.write(170-PWM[1]);
+  myservoF.write(PWM[0]);
+  myservoB.write(PWM[1]);
 }
-////////////////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////////////// Could use more sophisticated method here. Need to do this for both wheels
-bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time, int analogPinPhoto){
-  int current_value = analogRead(analogPinPhoto);
-  delayMicroseconds(100);
-//  Serial.println(((unsigned int)Time - previous_time)*pow(10,-6));
-//Serial.println((unsigned int)Time);
-//Serial.println(previous_time);
-//  Serial.println(hole_count);
-//  Serial.println(current_value);
-  if(hole_count >= max_count){
-//    Serial.println("hello");
-    return true;
-  }
-  else if(current_value > magic_thresh && previous_value <= magic_thresh){
-//    Serial.println(current_value);
-    int window_value = analogRead(analogPinPhoto);
-    while(window_value < window_thresh){
-      window_value = analogRead(analogPinPhoto);
-    }
-      
-    hole_count++;
-//    Serial.println(hole_count);
-    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
-  }
-  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
-//    Serial.println("yoyo");
-    return false;
-  } 
-  else{
-    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
-  }
-  // add window threshold
-  // add delay?  
-}
-
-double get_rps(int num_holes, int analogPinPhoto){
-  bool rps_flag = false;
-  unsigned int previous_time = (unsigned int)Time;
-  int hole_count = 0;
-  rps_flag = get_rps_flag(hole_count, num_holes, analogRead(analogPinPhoto), previous_time, analogPinPhoto);
-//  Serial.println(rps_flag);
-  if(rps_flag){
-    unsigned int current_time = (unsigned int)Time;
-    return (double)num_holes/((current_time-previous_time)*pow(10,-6)*16.0);
-  }
-  else{
-//    Serial.println("hello???");
-    return 0.0;
-  }
-}
-
-//void writeSD(outputData* data){
-//  file_t file;
-//  BufferedPrint<file_t, 64> bp;
-//
-//  //--------------------------------------------
-//  // Change the file name if necessary
-//  char fileName[13] = "Test0.txt";
-//  //--------------------------------------------
-//  
-//  if (!file.open(fileName, O_RDWR | O_CREAT | O_TRUNC)) {
-//      sd.errorHalt(&Serial, F("open failed"));
-//    }
-//  if (1) {
-//    bp.begin(&file);
-//  }
-//
-//  //-----------------------------------------------
-//  // Change this section if input data type changes
-//  //file.println(i);
-//
-//  for(int j=0; j<3000; j++){
-//        file.print(data[j].t);
-//        file.print(data[j].pot);
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].angle[i]);
-//        }
-//  for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].accel[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].spd[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].angle[i]);
-//        }
-//  for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].accel[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].spd[i]);
-//        }
-//        file.print(data[j].PWM[0]);
-//        file.print(data[j].PWM[1]);
-//        file.print(data[j].RPS[0]);
-//        file.print(data[j].RPS[1]);
-//}
-//  //-----------------------------------------------
-//  
-//  if (1) {
-//    bp.sync();
-//  }
-//  if (file.getWriteError()) {
-//    sd.errorHalt(&Serial, F("write failed"));
-//  }
-//  double s = file.fileSize();
-//  file.close();
-//}
 
 void writeSD(double* data){
   file_t file;
@@ -535,22 +363,22 @@ void setup_SD(){
 
 void setup_mpu(){
   Wire.begin();
-  Serial.begin(9600);
+//  Serial.begin(9600);
 //  fifoCount = mpuF.getFIFOCount();
-  mpuF.resetFIFO();
+//  mpuF.resetFIFO();
 //  if(fifoCount >= 1024){
 //    
 //  }
   
   mpuF.initialize();
 //  mpuB.initialize();
-//  Wire.setSDA(18);
+//  Wire.setSDA(18); 
 //  Wire.setSCL(19);
 //  Wire.setSDA(38);
 //  Wire.setSCL(37);
-  mpuF.setXGyroOffset(0);
-  mpuF.setYGyroOffset(0);
-  mpuF.setZGyroOffset(0);
+  mpuF.setXGyroOffset(100);
+  mpuF.setYGyroOffset(100);
+  mpuF.setZGyroOffset(100);
   mpuF.setZAccelOffset(1688);
 //  mpuB.setXGyroOffset(0);
 //  mpuB.setYGyroOffset(0);
@@ -577,92 +405,52 @@ void setup_mpu(){
 void setup() {
   setup_motors();
   //Serial.begin(9600);
-//  setup_SD();
+  setup_SD();
   setup_mpu();
   buzz_setup(14);
+  make_buzz(14, 500, 500);
 }
 
+float pitch_prev = 0;
 void loop() {
-  // READ INPUTS
-//  ypr[1] = 0.1;
   int p_i = ReadPot(potpin); // Read the input potentiometer position
-  ReadAngle(mpuF, packetSizeF); // Read the gyroscope angle
-  ypr[1] = atan(ypr[1])*180;
-  Serial.println(p_i);
-  Serial.println(ypr[1]);
-
-//////////// here
-
-  // PREVENTATIVE SYSTEM
-  float* F_b_out = (float*)malloc(sizeof(float)*2); // F_b_out[0] = F_b1_out, F_b_out[1] = F_b2_out
-//  int* PWM = (int*)malloc(sizeof(int)*2); // PWM[0] = PWM_1, PWM[1] = PWM_2
-
-  int p_i_array[17] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160};
-  float angles[17] = {-0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};  
-
-//  for(int i = 0; i < 17; i++) {
-//    for(int j = 0; j < 17; j++) {
-//      int p_i = p_i_array[i];
-//      float angle = angles[j];
-//      Serial.print(p_i);
-//      Serial.print(" ");
-//      Serial.print(angle);
-//      Serial.print(" ");
-
-      
-      float F_F_max = TheoreticalMaximumGroundFriction(mu_s, d_C1_COM, M, 0, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM);
-//      RunNoSlipNoFlipAlgo(F_b_out, F_F_max, p_i_max, p_i, mu_s, d_C1_COM, M, angle, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM); 
-      RunNoSlipNoFlipAlgo(F_b_out, F_F_max, p_i_max, p_i, mu_s, d_C1_COM, M, ypr[1], d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM); 
-      
-//      Serial.print(F_b_out[0]);
-//      Serial.print(" ");
-//      Serial.print(F_b_out[1]);
-//      Serial.println();
-
-      F_b_out[0] = map(F_b_out[0], 0, 1400, 170, 10);
-      F_b_out[1] = map(F_b_out[1], 0, 800, 10, 170);
-      Serial.print(F_b_out[0]);
-      Serial.print(" ");
-      Serial.print(F_b_out[1]);
-      Serial.println();
-   // } 
-  //}
-    free(F_b_out);
-    delay(10);
-    
-//  while(true) {
-//    
-//  }
-  
-//  ForceToPWM(PWM, F_b_out);
-//  MoveMotors(PWM);
-  
-//  free(F_b_out);
-//  free(PWM);
-
-  //////////////////////////////////////////////////////////////////////////////////////// Need to update this
-  // REACTIVE SYSTEM
-//  double* RPS = (double*)malloc(sizeof(double)*2);
-  
-  // Infinite loop that only breaks with a significant change in potentiometer position
-//  ReadRPS(RPS);
-  ////////////////////////////////////////////////////////////////////////////////////////
-
-  // after loop:
-//  free(RPS);
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Need to write the data to the teensy at each time step
-  ///////////////////////////////////////////////////////////////////////////////////////
-
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Need to write a function to activate the buzzer at a certain velocity
-  ///////////////////////////////////////////////////////////////////////////////////////
-
-//  // This is super weird we need to fix this (there will be a memory leak cuz there is no good time to free the data)
-//  // Should probably just write to the file each time
-//  outputData* data = (outputData*)malloc(sizeof(outputData)*3000);
-//  free(data)
-
-////////// here
+//  Serial.println(p_i_max - p_i);
+  p_i = map(p_i_max - p_i, 30, 154, 0, 215);
+//  Serial.println(p_i);
+//  int p_i = 70;
+  float pitch = 0; // Read the gyroscope angle
+  for (int i=0; i<10; i++){
+    ReadAngle(mpuF, packetSizeF);
+//    ypr[1] = atan(ypr[1]);
+    pitch += ypr[1]*2;
+  }
+  pitch /= 10;
+  if(debug){
+//    Serial.print(p_i);
+//    Serial.print(", ");
+//    Serial.println(pitch*1000);
+  }
+  float F_b_out[2] = {.0,.0}; 
+  int PWM[2] = {0, 0};
+  float F_F_max = TheoreticalMaximumGroundFriction(mu_s, d_C1_COM, M, 0, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM);
+  RunNoSlipNoFlipAlgo(F_b_out, F_F_max, p_i_max, p_i, mu_s, d_C1_COM, M, pitch, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM); 
+  PWM[0] = map(F_b_out[0], 0, 1400, 170, 10);
+  PWM[1] = map(F_b_out[1], 0, 800, 10, 170);
+  if(debug){
+    Serial.print(PWM[0]);
+    Serial.print(", ");
+//    Serial.print(F_b_out[0]);
+//    Serial.print(", ");
+    Serial.print(PWM[1]);
+//    Serial.print(", ");
+//    Serial.print(F_b_out[1]);
+    Serial.println();
+  }
+  Serial.println(pitch);
+  if(pitch_prev >= 0 && pitch <0){
+    Serial.println("hello");
+  pitch_prev = pitch;
+  MoveMotors(PWM);
+  delay(10);
+}
 }
