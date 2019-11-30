@@ -166,11 +166,6 @@ int val=0;
   return val;
 }
 
-float ReadLinSpeed(float wheelRadius){
-  float* rps = get_rps();
-  return (rps[0]*wheelRadius*Pi);
-}
-
 void absAlgorithm(int PWM[]) {
     // save the original PWM values
     double PWM1 = PWM[0];
@@ -188,7 +183,7 @@ void absAlgorithm(int PWM[]) {
       return;
     }
     // slipping, run the algorithm until stop moving or stop braking
-    while((PWM[0] > 165 || PWM[1] > 165) && linSpeed != 0) {
+    while((PWM[0] < 165 || PWM[1] < 165) && linSpeed != 0) {
         // set braking force to zero until slipRatio < 0.19
         PWM[0] = 170;
         PWM[1] = 170;
