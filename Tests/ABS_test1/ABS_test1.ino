@@ -201,7 +201,7 @@ void absAlgorithm(int PWM[]) {
               float wheelRotationSpeed = rps[1];
               float linSpeed = rps[0] * wheelRadius*2*Pi;
               slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
-              writeSD(wheelRotationSpeed, current_time1, PWM, linSpeed, slipRatio);  
+//              writeSD(wheelRotationSpeed, current_time1, PWM, linSpeed, slipRatio);  
 //          }
         }
         // start braking at original force again until slipRatio > 0.19
@@ -216,7 +216,7 @@ void absAlgorithm(int PWM[]) {
               float wheelRotationSpeed = rps[1];
               float linSpeed = rps[0] * wheelRadius*2*Pi;
               slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
-              writeSD(wheelRotationSpeed, current_time2, PWM, linSpeed, slipRatio); 
+//              writeSD(wheelRotationSpeed, current_time2, PWM, linSpeed, slipRatio); 
 //          }
         }   
       }  

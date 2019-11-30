@@ -117,12 +117,12 @@ int ReadPot(const int potpin){
   //Serial.println(val);
   int rounder = 10;
    if(val>180){
-    val=200;
+    val=220;
   }
   val = val/rounder;
 //  Serial.println(val);
 //  delay(20);
-  val = map(val, 0, 20, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
+  val = map(val, 0, 22, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
   return val;
 }
 
@@ -289,189 +289,12 @@ float TheoreticalMaximumGroundFriction(float mu_s,float* d_C1_COM,float M,float 
   return F_F_max;
 }
 
-//----------------------------------------- ABS Algorithm ----------------------------------------------------------
-void absAlgorithm(int* PWM) {
-    // save the original PWM values
-    double PWM1 = PWM[0];
-    double PWM2 = PWM[1];
-    // find the current wheel rotation wheed and linear speed of the bike  
-    double wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-    double wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-    double wheelRotationSpeed = (wheelRotationSpeedF>wheelRotationSpeedB)? wheelRotationSpeedB : wheelRotationSpeedF;
-    ReadLinSpeed(mpuF, packetSizeF);
-    double slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
-    // not slipping at all
-    if(slipRatio < 0.19)
-      return;
-    // slipping, run the algorithm until stop moving or stop braking
-    while((PWM[0] > 0 || PWM[1] > 0) && linSpeed.x > 0) {
-        // set braking force to zero until slipRatio < 0.19
-        PWM[0] = 0;
-        PWM[1] = 0;
-        MoveMotors(PWM);
-        unsigned long previous_time = (unsigned long)Time;
-        while(slipRatio > 0.19) {
-          unsigned long current_time1 = (unsigned long)Time;
-          if((current_time1-previous_time) > 100) {
-              float wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-              float wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-              wheelRotationSpeed = wheelRotationSpeedF > wheelRotationSpeedB ? wheelRotationSpeedB : wheelRotationSpeedF;
-              ReadLinSpeed(mpuF, packetSizeF);
-              slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
-          }
-        }
-        // start braking at original force again until slipRatio > 0.19
-        PWM[0] = PWM1;
-        PWM[1] = PWM2;
-        MoveMotors(PWM);
-        previous_time = (unsigned long)Time;
-        while(slipRatio < 0.19) {
-          unsigned long current_time2 = (unsigned long)Time;
-          if((current_time2-previous_time) > 100) {
-              float wheelRotationSpeedF = get_rps(2, analogPinPhotoF);
-              float wheelRotationSpeedB = get_rps(2, analogPinPhotoB);
-              wheelRotationSpeed = wheelRotationSpeedF > wheelRotationSpeedB ? wheelRotationSpeedB : wheelRotationSpeedF;
-              ReadLinSpeed(mpuF, packetSizeF);
-              slipRatio = 1 - (wheelRadius * wheelRotationSpeed / linSpeed.x);
-          }
-        }   
-      }  
-    return;
-}
-
-//////////////////////////////////////////////////////////////////////////////////////// Need to write this (and run calibration test)
-void ForceToPWM(int* PWM, float* F_b_out){
-  //float PWM[2] = {20, 80};
-  //return PWM;
-//  float calibration1 = 1;
-//  float calibration2 = 1;
-//  F_b_out[0] = F_b_out[0]*calibration1;
-//  F_b_out[1] = F_b_out[1]*calibration2;
-//  return F_b_out;
-
-  //float* PWM = malloc(sizeof(float)*2);
-  PWM[0] = 20;
-  PWM[1] = 80;
-  //return PWM
-}
-////////////////////////////////////////////////////////////////////////////////////////
-
 //////////////////////////////////////////////////////////////////////////////////////// 
 void MoveMotors(int* PWM){
   //Serial.println("success");
   myservoF.write(PWM[0]);
   myservoB.write(PWM[1]);
 }
-////////////////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////////////// Could use more sophisticated method here. Need to do this for both wheels
-bool get_rps_flag(int hole_count, int max_count, int previous_value, unsigned int previous_time, int analogPinPhoto){
-  int current_value = analogRead(analogPinPhoto);
-  delayMicroseconds(100);
-//  Serial.println(((unsigned int)Time - previous_time)*pow(10,-6));
-//Serial.println((unsigned int)Time);
-//Serial.println(previous_time);
-//  Serial.println(hole_count);
-//  Serial.println(current_value);
-  if(hole_count >= max_count){
-//    Serial.println("hello");
-    return true;
-  }
-  else if(current_value > magic_thresh && previous_value <= magic_thresh){
-//    Serial.println(current_value);
-    int window_value = analogRead(analogPinPhoto);
-    while(window_value < window_thresh){
-      window_value = analogRead(analogPinPhoto);
-    }
-      
-    hole_count++;
-//    Serial.println(hole_count);
-    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
-  }
-  else if(((unsigned int)Time - previous_time)*pow(10,-3) > max_time){
-//    Serial.println("yoyo");
-    return false;
-  } 
-  else{
-    return get_rps_flag(hole_count, max_count, current_value, previous_time, analogPinPhoto);
-  }
-  // add window threshold
-  // add delay?  
-}
-
-double get_rps(int num_holes, int analogPinPhoto){
-  bool rps_flag = false;
-  unsigned int previous_time = (unsigned int)Time;
-  int hole_count = 0;
-  rps_flag = get_rps_flag(hole_count, num_holes, analogRead(analogPinPhoto), previous_time, analogPinPhoto);
-//  Serial.println(rps_flag);
-  if(rps_flag){
-    unsigned int current_time = (unsigned int)Time;
-    return (double)num_holes/((current_time-previous_time)*pow(10,-6)*16.0);
-  }
-  else{
-//    Serial.println("hello???");
-    return 0.0;
-  }
-}
-
-//void writeSD(outputData* data){
-//  file_t file;
-//  BufferedPrint<file_t, 64> bp;
-//
-//  //--------------------------------------------
-//  // Change the file name if necessary
-//  char fileName[13] = "Test0.txt";
-//  //--------------------------------------------
-//  
-//  if (!file.open(fileName, O_RDWR | O_CREAT | O_TRUNC)) {
-//      sd.errorHalt(&Serial, F("open failed"));
-//    }
-//  if (1) {
-//    bp.begin(&file);
-//  }
-//
-//  //-----------------------------------------------
-//  // Change this section if input data type changes
-//  //file.println(i);
-//
-//  for(int j=0; j<3000; j++){
-//        file.print(data[j].t);
-//        file.print(data[j].pot);
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].angle[i]);
-//        }
-//  for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].accel[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[0].spd[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].angle[i]);
-//        }
-//  for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].accel[i]);
-//        }
-//        for(int i = 0; i<3; i++){
-//            file.print(data[j].meters[1].spd[i]);
-//        }
-//        file.print(data[j].PWM[0]);
-//        file.print(data[j].PWM[1]);
-//        file.print(data[j].RPS[0]);
-//        file.print(data[j].RPS[1]);
-//}
-//  //-----------------------------------------------
-//  
-//  if (1) {
-//    bp.sync();
-//  }
-//  if (file.getWriteError()) {
-//    sd.errorHalt(&Serial, F("write failed"));
-//  }
-//  double s = file.fileSize();
-//  file.close();
-//}
 
 void writeSD(double* data){
   file_t file;
@@ -579,6 +402,7 @@ void setup() {
   //Serial.begin(9600);
 //  setup_SD();
   setup_mpu();
+  buzz_setup(14);
   make_buzz(14, 500, 500);
 }
 
@@ -593,19 +417,20 @@ void loop() {
   }
   pitch /= 10;
   if(debug){
-	  Serial.println(p_i);
-	  Serial.println(pitch);
+	  Serial.print(p_i);
+    Serial.print(", ");
+//	  Serial.println(pitch);
   }
   float F_b_out[2] = {.0,.0}; 
   int PWM[2] = {.0, .0};
   float F_F_max = TheoreticalMaximumGroundFriction(mu_s, d_C1_COM, M, 0, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM);
-  RunNoSlipNoFlipAlgo(F_b_out, F_F_max, p_i_max, p_i, mu_s, d_C1_COM, M, pitch, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM); 
+  RunNoSlipNoFlipAlgo(F_b_out, F_F_max, p_i_max, p_i_max-p_i, mu_s, d_C1_COM, M, pitch, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM); 
   PWM[0] = map(F_b_out[0], 0, 1400, 170, 10);
   PWM[1] = map(F_b_out[1], 0, 800, 10, 170);
   if(debug){
-	  Serial.print(PWM[0]);
-	  Serial.print(", ");
 	  Serial.print(PWM[1]);
+	  Serial.print(", ");
+	  Serial.print(F_b_out[1]);
 	  Serial.println();
   }
   MoveMotors(PWM);
