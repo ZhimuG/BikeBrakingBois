@@ -17,9 +17,10 @@ MPU6050 mpuF;
 MPU6050 mpuB;
 
 //----------------------------------------------- Constants ---------------------------------------------------
+bool debug = true;
 //------------------------------------------ For RunNoSlipNoFlipAlgo ------------------------------------------
 float g = 9.81; //[m/s^2]
-int p_i_max = 100; // Define the potentiometer position corresponding to a maximum braking force [10 170]
+int p_i_max = 200; // Define the potentiometer position corresponding to a maximum braking force [10 170]
 float mu_s = 0.4; // Similar to tire rubber on grass (underestimated for normal cycling conditions)
 float d_C1_COM[3] = {0.69, 1, 0}; //[m] x,y,z components of distance from C1 to COM
 float d_C1_C2[3] = {1.12, 0, 0}; //[m] x,y,z components of distance from C1 to C2
@@ -115,13 +116,13 @@ int ReadPot(const int potpin){
   val = val/5;
   //Serial.println(val);
   int rounder = 10;
-   if(val>100){
-    val=120;
+   if(val>180){
+    val=200;
   }
   val = val/rounder;
 //  Serial.println(val);
 //  delay(20);
-  val = map(val, 0, 12, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
+  val = map(val, 0, 20, 10, 170);     // scale it to use it with the servo (value between 0 and 180)
   return val;
 }
 
@@ -358,8 +359,8 @@ void ForceToPWM(int* PWM, float* F_b_out){
 //////////////////////////////////////////////////////////////////////////////////////// 
 void MoveMotors(int* PWM){
   //Serial.println("success");
-  myservoF.write(10+PWM[0]);
-  myservoB.write(170-PWM[1]);
+  myservoF.write(PWM[0]);
+  myservoB.write(PWM[1]);
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -534,22 +535,22 @@ void setup_SD(){
 
 void setup_mpu(){
   Wire.begin();
-  Serial.begin(9600);
+//  Serial.begin(9600);
 //  fifoCount = mpuF.getFIFOCount();
-  mpuF.resetFIFO();
+//  mpuF.resetFIFO();
 //  if(fifoCount >= 1024){
 //    
 //  }
   
   mpuF.initialize();
 //  mpuB.initialize();
-//  Wire.setSDA(18);
+//  Wire.setSDA(18); 
 //  Wire.setSCL(19);
 //  Wire.setSDA(38);
 //  Wire.setSCL(37);
-  mpuF.setXGyroOffset(0);
-  mpuF.setYGyroOffset(0);
-  mpuF.setZGyroOffset(0);
+  mpuF.setXGyroOffset(100);
+  mpuF.setYGyroOffset(100);
+  mpuF.setZGyroOffset(100);
   mpuF.setZAccelOffset(1688);
 //  mpuB.setXGyroOffset(0);
 //  mpuB.setYGyroOffset(0);
@@ -578,28 +579,35 @@ void setup() {
   //Serial.begin(9600);
 //  setup_SD();
   setup_mpu();
-  buzz_setup(14);
+  make_buzz(14, 500, 500);
 }
 
 void loop() {
-  // int p_i = ReadPot(potpin); // Read the input potentiometer position
-  p_i = 50;
-  ReadAngle(mpuF, packetSizeF); // Read the gyroscope angle
-  ypr[1] = atan(ypr[1])*180;
+  int p_i = ReadPot(potpin); // Read the input potentiometer position
+//  int p_i = 70;
+  float pitch = 0; // Read the gyroscope angle
+  for (int i=0; i<10; i++){
+    ReadAngle(mpuF, packetSizeF);
+//    ypr[1] = atan(ypr[1]);
+    pitch += ypr[1]*5;
+  }
+  pitch /= 10;
   if(debug){
-	Serial.println(p_i);
-	Serial.println(ypr[1]);
+	  Serial.println(p_i);
+	  Serial.println(pitch);
   }
   float F_b_out[2] = {.0,.0}; 
+  int PWM[2] = {.0, .0};
   float F_F_max = TheoreticalMaximumGroundFriction(mu_s, d_C1_COM, M, 0, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM);
-  RunNoSlipNoFlipAlgo(F_b_out, F_F_max, p_i_max, p_i, mu_s, d_C1_COM, M, ypr[1], d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM); 
-  F_b_out[0] = map(F_b_out[0], 0, 1400, 170, 10);
-  F_b_out[1] = map(F_b_out[1], 0, 800, 10, 170);
+  RunNoSlipNoFlipAlgo(F_b_out, F_F_max, p_i_max, p_i, mu_s, d_C1_COM, M, pitch, d_C1_C2, SB1, R, r, I_A2, d_C2_COM, SB2, I_A1, d_A1_COM); 
+  PWM[0] = map(F_b_out[0], 0, 1400, 170, 10);
+  PWM[1] = map(F_b_out[1], 0, 800, 10, 170);
   if(debug){
-	Serial.print(F_b_out[0]);
-	Serial.print(" ");
-	Serial.print(F_b_out[1]);
-	Serial.println();
+	  Serial.print(PWM[0]);
+	  Serial.print(", ");
+	  Serial.print(PWM[1]);
+	  Serial.println();
   }
+  MoveMotors(PWM);
   delay(10);
 }

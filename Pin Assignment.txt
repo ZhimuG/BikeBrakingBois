@@ -2,6 +2,19 @@ Servos:
 Front: Pin 3
 Back: Pin 2
 
+  myservoB.attach(3);    
+  myservoF.attach(2);   
+  myservoB.write(10);
+  myservoF.write(170);
+
+void MoveMotors(int PWM){
+  //Serial.println("success");
+  myservoF.write(PWM);
+  myservoB.write(180-PWM);
+}
+
+val = map(val, 0, 20, 10, 170);
+
 Photodiodes:
 Front:
 Back:

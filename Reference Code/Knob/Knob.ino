@@ -122,25 +122,25 @@ int ReadPot(const int potpin){
 
 void MoveMotors(int PWM){
   //Serial.println("success");
-  myservoF.write(170-PWM);
-  myservoB.write(10+PWM);
+  myservoF.write(PWM);
+  myservoB.write(180-PWM);
 }
 
 void setup() {
   // put your setup code here, to run once:
-  myservoB.attach(2);         // attaches the servo on pin 9 to the servo object
-  myservoF.attach(3);         // attaches the servo on pin 9 to the servo object
+  myservoB.attach(3);         // attaches the servo on pin 9 to the servo object
+  myservoF.attach(2);         // attaches the servo on pin 9 to the servo object
   //  Serial.begin(9600);
-  myservoB.write(10);
-  myservoF.write(170);
+  myservoB.write(170);
+  myservoF.write(10);
 }
 
 void loop() {
   val = ReadPot(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
-//  Serial.println(val);
+  Serial.println(val);
 //  val = map(val, 0, 1023, 0, 179);     // scale it to use it with the servo (value between 0 and 180)
   MoveMotors(val);
-  Serial.println(analogRead(31));
+//  Serial.println(analogRead(31));
 //  writeSD(analogRead(31));
   delay(15);                           // waits for the servo to get there
 }
