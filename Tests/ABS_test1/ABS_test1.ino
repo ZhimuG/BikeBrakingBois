@@ -177,10 +177,10 @@ void absAlgorithm(int PWM[]) {
     float wheelRotationSpeed = rps[1];
     float linSpeed = rps[0] * wheelRadius*2*Pi;
     double slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
-    if(linSpeed > 18/3.6 && linSpeed < 22/3.6){
-      make_buzz(14, 500, 200);
-    }
-    writeSD(wheelRotationSpeed, PWM, linSpeed, slipRatio); 
+//    if(linSpeed > 18/3.6 && linSpeed < 22/3.6){
+//      make_buzz(14, 500, 200);
+//    }
+    writeSD(wheelRotationSpeed, PWM, linSpeed, slipRatio, micros()); 
     // not slipping at all
     if(slipRatio < 0.19 || linSpeed == 0 || PWM[1] > 160){
       return;
@@ -201,9 +201,10 @@ void absAlgorithm(int PWM[]) {
         slipRatio = 1 - (2*wheelRadius * wheelRotationSpeed * Pi / linSpeed);
         int val = ReadPot(potpin);
         PWM[1] = val;
-        if(linSpeed > 18/3.6 && linSpeed < 22/3.6){
-          make_buzz(14, 500, 200);
-        }
+        writeSD(wheelRotationSpeed, PWM, linSpeed, slipRatio, micros()); 
+//        if(linSpeed > 18/3.6 && linSpeed < 22/3.6){
+//          make_buzz(14, 500, 200);
+//        }
 //        unsigned long previous_time = (unsigned long)Time;
 //        while(slipRatio > 0.19) {
 ////          unsigned long current_time1 = (unsigned long)Time;
@@ -234,7 +235,7 @@ void absAlgorithm(int PWM[]) {
     return;
 }
 
-void writeSD(float wheelRotationSpeed, int* PWM, float linSpeed, float slipRatio) {
+void writeSD(float wheelRotationSpeed, int* PWM, float linSpeed, float slipRatio, unsigned long t) {
   file_t file;
   BufferedPrint<file_t, 64> bp;
   //--------------------------------------------
@@ -251,9 +252,7 @@ void writeSD(float wheelRotationSpeed, int* PWM, float linSpeed, float slipRatio
   //-----------------------------------------------
   // Change this section if input data type changes
   //  int data_arr_len = 6;
-  file.print("Datapoint ");
-  file.println();
-  file.print(0);
+  file.print(t);
   file.print(", ");
   file.print(PWM[0]);
   file.print(", ");
@@ -265,6 +264,35 @@ void writeSD(float wheelRotationSpeed, int* PWM, float linSpeed, float slipRatio
   file.print(", ");
   file.print(slipRatio);  
   file.println();
+  //-----------------------------------------------
+  if (1) {
+    bp.sync();
+  }
+  if (file.getWriteError()) {
+    sd.errorHalt(&Serial, F("write failed"));
+  }
+  double s = file.fileSize();
+  file.close();
+}
+
+void writeSD_Title() {
+  file_t file;
+  BufferedPrint<file_t, 64> bp;
+  //--------------------------------------------
+  // Change the file name if necessary
+  char fileName[23] = "Calibration_wheel0.txt";
+  //char fileName[10] = "TestPot.txt"; //filename;
+  //--------------------------------------------
+  if (!file.open(fileName, O_RDWR | O_APPEND)) {
+      sd.errorHalt(&Serial, F("open failed"));
+    }
+  if (1) {
+    bp.begin(&file);
+  }
+  //-----------------------------------------------
+  // Change this section if input data type changes
+  //  int data_arr_len = 6;
+  file.println("Trial Start");
   //-----------------------------------------------
   if (1) {
     bp.sync();
@@ -300,6 +328,7 @@ void setup() {
   setup_motors();
   buzz_setup(14);
   setup_SD();
+  writeSD_Title();
 }
 
 void loop() {
