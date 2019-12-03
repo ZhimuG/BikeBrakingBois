@@ -2,7 +2,7 @@
 #include "SdFat.h"
 #include "BufferedPrint.h"
 
-#define NUM_POINTS 2000
+#define NUM_POINTS 3000
 #define BIG_NUMBER 1000000000
 
 // For SD write:
